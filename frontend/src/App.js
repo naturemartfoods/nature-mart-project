@@ -323,6 +323,7 @@ function AppContent() {
     });
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetch(`${API_URL}/api/products`)
       .then(r => r.json())
