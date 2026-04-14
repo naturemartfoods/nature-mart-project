@@ -8,8 +8,7 @@ export default function Profile() {
   const [msg, setMsg]       = useState("");
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
-  const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {

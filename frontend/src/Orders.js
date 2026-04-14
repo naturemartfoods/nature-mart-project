@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
   useEffect(() => {
     fetch(`${API_URL}/api/orders`)
       .then(res => res.json())

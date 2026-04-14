@@ -9,8 +9,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState("all");
-  const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
   const load = () => {
     authFetch(`${API_URL}/api/admin/orders`)
       .then(r => r.json())

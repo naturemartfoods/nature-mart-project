@@ -173,8 +173,7 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminUsers from "./pages/admin/AdminUsers";
 import "./App.css";
 
-const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
 // ── Protected route wrapper ──────────────────────────────────
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();

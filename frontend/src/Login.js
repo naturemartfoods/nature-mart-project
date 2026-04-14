@@ -5,8 +5,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
   const handleLogin = () => {
     fetch(`${API_URL}/api/login`, {
       method: "POST",

@@ -3,8 +3,7 @@ import { useAuth } from "../../AuthContext";
 import "./Admin.css";
 
 const EMPTY = { name: "", price: "", description: "", weight: "", stock: 100, image: "" };
-const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
 export default function AdminProducts() {
   const { authFetch } = useAuth();
   const [products, setProducts] = useState([]);

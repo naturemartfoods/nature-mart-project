@@ -6,8 +6,7 @@ import "./Auth.css";
 export default function Register() {
   const { login } = useAuth();
   const navigate  = useNavigate();
-  const API_URL = "https://your-backend.onrender.com";
-
+const API_URL = "https://nature-mart-project.onrender.com";
   const [form, setForm]   = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
