@@ -11,7 +11,7 @@ function Cart({ onOrderPlaced }) {
 
   const authHeaders = () => ({
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+    "Authorization": `Bearer ${localStorage.getItem("nm_token")}`,
   });
 
   // ✅ Retries up to `retries` times with a delay — handles Render cold start
@@ -150,7 +150,7 @@ function Cart({ onOrderPlaced }) {
             {cart.items.map((item) => (
               <div className="cart-item" key={item.id}>
                 <div className="cart-item-img">
-                  <img src={item.image} alt={item.name} />
+                  <img src={`${API_URL}${item.image}`} alt={item.name}/>
                 </div>
                 <div className="cart-item-info">
                   <h3 className="cart-item-name">{item.name}</h3>
