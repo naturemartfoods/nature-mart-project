@@ -7,7 +7,7 @@ function Cart({ onOrderPlaced }) {
   const [placing, setPlacing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const API_URL = "https://your-backend.onrender.com"
+  const API_URL = "https://nature-mart-project.onrender.com"
 
   const loadCart = () => {
     fetch(`${API_URL}/api/cart`)
