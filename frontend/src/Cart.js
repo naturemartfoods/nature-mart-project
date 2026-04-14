@@ -1,59 +1,125 @@
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useCallback } from "react";
 
 function Cart({ onOrderPlaced }) {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(true);
+  const [wakingUp, setWakingUp] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const API_URL = "https://nature-mart-project.onrender.com"
+  const API_URL = "https://nature-mart-project.onrender.com";
 
-  const loadCart = () => {
-    fetch(`${API_URL}/api/cart`)
-      .then(res => res.json())
-      .then(data => {
-        setCart(data);
-        setLoading(false);
-      })
-      .catch(err => console.error("Error:", err));
-  };
+  const authHeaders = () => ({
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+  });
 
-  useEffect(() => { loadCart(); }, []);
+  // ✅ Retries up to `retries` times with a delay — handles Render cold start
+  const fetchWithRetry = useCallback(async (url, options = {}, retries = 5, delay = 3000) => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(url, options);
+
+        // If server returned a non-OK response (e.g. 503 while waking), wait and retry
+        if (!res.ok) {
+          if (i === 0) setWakingUp(true);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        const data = await res.json();
+
+        // If response is missing expected fields, retry
+        if (data.items === undefined) {
+          if (i === 0) setWakingUp(true);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        setWakingUp(false);
+        return data;
+
+      } catch (err) {
+        // Network error (server still asleep), wait and retry
+        if (i === 0) setWakingUp(true);
+        console.warn(`Attempt ${i + 1} failed:`, err.message);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+    throw new Error("Server unavailable after multiple retries.");
+  }, []);
+
+  const loadCart = useCallback(async () => {
+    try {
+      const data = await fetchWithRetry(
+        `${API_URL}/api/cart`,
+        { headers: authHeaders() }
+      );
+      setCart({ items: data.items || [], total: data.total || 0 });
+    } catch (err) {
+      console.error("Could not load cart:", err.message);
+      setCart({ items: [], total: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchWithRetry]);
+
+  useEffect(() => { loadCart(); }, [loadCart]);
 
   const increase = (id) => {
-    fetch(`${API_URL}/api/cart/increase/${id}`, { method: "PUT" })
-      .then(() => loadCart());
+    fetch(`${API_URL}/api/cart/increase/${id}`, {
+      method: "PUT",
+      headers: authHeaders(),
+    }).then(() => loadCart());
   };
 
   const decrease = (id) => {
-    fetch(`${API_URL}/api/cart/decrease/${id}`, { method: "PUT" })
-      .then(() => loadCart());
+    fetch(`${API_URL}/api/cart/decrease/${id}`, {
+      method: "PUT",
+      headers: authHeaders(),
+    }).then(() => loadCart());
   };
 
   const removeItem = (id) => {
-    fetch(`${API_URL}/api/cart/remove/${id}`, { method: "DELETE" })
-      .then(() => loadCart());
+    fetch(`${API_URL}/api/cart/remove/${id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    }).then(() => loadCart());
   };
 
   const checkout = () => {
     setPlacing(true);
-    fetch(`${API_URL}/api/cart/checkout`, { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
+    fetch(`${API_URL}/api/cart/checkout`, {
+      method: "POST",
+      headers: authHeaders(),
+    })
+      .then((res) => res.json())
+      .then(() => {
         setPlacing(false);
         setOrderSuccess(true);
         loadCart();
         if (onOrderPlaced) onOrderPlaced();
         setTimeout(() => setOrderSuccess(false), 3500);
+      })
+      .catch((err) => {
+        console.error("Checkout error:", err);
+        setPlacing(false);
       });
   };
 
+  // ✅ Render cold-start loading screen
   if (loading) {
     return (
       <div className="page-loader">
         <div className="spinner"></div>
-        <p>Loading your cart…</p>
+        {wakingUp ? (
+          <>
+            <p>☕ Server is waking up on Render free tier…</p>
+            <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>This takes ~15–30 seconds. Please wait.</p>
+          </>
+        ) : (
+          <p>Loading your cart…</p>
+        )}
       </div>
     );
   }
@@ -62,13 +128,13 @@ function Cart({ onOrderPlaced }) {
     <div className="cart-page">
       <div className="page-header">
         <h1 className="page-title">Your Cart</h1>
-        <span className="item-count">{cart.items.length} item{cart.items.length !== 1 ? "s" : ""}</span>
+        <span className="item-count">
+          {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {orderSuccess && (
-        <div className="success-banner">
-          🎉 Order placed successfully!
-        </div>
+        <div className="success-banner">🎉 Order placed successfully!</div>
       )}
 
       {cart.items.length === 0 ? (
@@ -81,13 +147,10 @@ function Cart({ onOrderPlaced }) {
       ) : (
         <div className="cart-layout">
           <div className="cart-items">
-            {cart.items.map(item => (
+            {cart.items.map((item) => (
               <div className="cart-item" key={item.id}>
                 <div className="cart-item-img">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                  />
+                  <img src={item.image} alt={item.name} />
                 </div>
                 <div className="cart-item-info">
                   <h3 className="cart-item-name">{item.name}</h3>
