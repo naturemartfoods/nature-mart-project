@@ -30,6 +30,51 @@ def add_to_cart():
     return jsonify({"message": "Added to cart"})
 
 
+@cart_bp.route('/cart/checkout', methods=['POST'])
+@token_required
+def checkout():
+    user_id = request.user_id
+    data    = request.json or {}
+
+    name           = data.get("name", "")
+    phone          = data.get("phone", "")
+    address        = data.get("address", "")
+    payment_method = data.get("payment_method", "cod")
+
+    conn = connect_db()
+    cur  = conn.cursor()
+
+    cur.execute("""
+        SELECT products.id, products.price, cart.quantity
+        FROM cart
+        JOIN products ON cart.product_id = products.id
+        WHERE cart.user_id = %s
+    """, (user_id,))
+    items = cur.fetchall()
+
+    if not items:
+        conn.close()
+        return jsonify({"message": "Cart is empty"}), 400
+
+    total_amount = 0
+    for product_id, price, quantity in items:
+        total = price * quantity
+        total_amount += total
+        cur.execute("""
+            INSERT INTO orders
+              (user_id, product_id, quantity, price, total,
+               name, phone, address, payment_method, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'placed')
+        """, (user_id, product_id, quantity, price, total,
+              name, phone, address, payment_method))
+
+    cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Order placed successfully", "total": total_amount})
+
+
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
