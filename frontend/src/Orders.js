@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+const API_URL = "https://nature-mart-project.onrender.com";
 
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-const API_URL = "https://nature-mart-project.onrender.com";
+
   useEffect(() => {
-    fetch(`${API_URL}/api/orders`)
-      .then(res => res.json())
-      .then(data => {
+    fetch(`${API_URL}/api/orders`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("nm_token")}`,
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
         setOrders(data.orders || []);
         setLoading(false);
       })
@@ -27,7 +35,9 @@ const API_URL = "https://nature-mart-project.onrender.com";
     <div className="orders-page">
       <div className="page-header">
         <h1 className="page-title">Order History</h1>
-        <span className="item-count">{orders.length} order{orders.length !== 1 ? "s" : ""}</span>
+        <span className="item-count">
+          {orders.length} order{orders.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {orders.length === 0 ? (
@@ -35,7 +45,7 @@ const API_URL = "https://nature-mart-project.onrender.com";
           <div className="empty-cart-icon">📦</div>
           <h3>No orders yet</h3>
           <p>Your order history will appear here.</p>
-          <a href="/" className="btn-primary">Start Shopping</a>
+          <Link to="/" className="btn-primary">Start Shopping</Link>
         </div>
       ) : (
         <div className="orders-list">
@@ -44,12 +54,24 @@ const API_URL = "https://nature-mart-project.onrender.com";
               <div className="order-card-left">
                 <div className="order-index">#{orders.length - index}</div>
                 <div className="order-info">
-                  <h3 className="order-name">{order.name}</h3>
+                  <h3 className="order-name">{order.product_name}</h3>
                   <p className="order-qty">Qty: {order.quantity}</p>
+                  {order.address && (
+                    <p className="order-address">📍 {order.address}</p>
+                  )}
                 </div>
               </div>
               <div className="order-card-right">
-                <span className="order-status">Delivered</span>
+                <span className={`order-status status-${order.status}`}>
+                  {order.status === "delivered"
+                    ? "✓ Delivered"
+                    : order.status === "shipped"
+                    ? "🚚 Shipped"
+                    : "⏳ Order placed"}
+                </span>
+                <p className="order-payment">
+                  {order.payment_method === "online" ? "💳 Online" : "💵 COD"}
+                </p>
                 <p className="order-total">₹{order.total}</p>
               </div>
             </div>

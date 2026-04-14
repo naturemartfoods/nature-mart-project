@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import Checkout from "./pages/Checkout";
 
 function Cart({ onOrderPlaced }) {
   const [cart, setCart] = useState({ items: [], total: 0 });
@@ -6,6 +7,7 @@ function Cart({ onOrderPlaced }) {
   const [wakingUp, setWakingUp] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const API_URL = "https://nature-mart-project.onrender.com";
 
@@ -121,6 +123,18 @@ function Cart({ onOrderPlaced }) {
           <p>Loading your cart…</p>
         )}
       </div>
+    );
+  }
+
+  if (showCheckout) {
+    return (
+      <Checkout
+        cart={cart}
+        onOrderPlaced={() => {
+          loadCart();
+          if (onOrderPlaced) onOrderPlaced();
+        }}
+      />
     );
   }
 
