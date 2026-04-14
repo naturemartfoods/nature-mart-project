@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+
 function Cart({ onOrderPlaced }) {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(true);
