@@ -173,6 +173,8 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminUsers from "./pages/admin/AdminUsers";
 import "./App.css";
 
+const API_URL = "https://your-backend.onrender.com";
+
 // ── Protected route wrapper ──────────────────────────────────
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -242,7 +244,7 @@ function ProductCard({ product, onAddToCart, added }) {
   return (
     <div className={`card ${added ? "card-added" : ""}`}>
       <div className="card-img-wrap">
-        <img src={`http://localhost:5000${product.image}`} alt={product.name} />
+        <img src={product.image} alt={product.name} />
         <div className="card-img-overlay">
           <span className="tag-natural">Natural</span>
         </div>
@@ -300,17 +302,18 @@ function AppContent() {
   const [products, setProducts] = useState([]);
   const [addedIds, setAddedIds] = useState([]);
   const [cartCount, setCartCount] = useState(0);
+  
 
   const fetchCartCount = () => {
     if (!user) { setCartCount(0); return; }
-    authFetch("http://localhost:5000/api/cart")
+    authFetch(`${API_URL}/api/cart`)
       .then(r => r.json())
       .then(d => setCartCount(d.items?.length || 0))
       .catch(() => {});
   };
 
   const addToCart = (id) => {
-    authFetch("http://localhost:5000/api/cart", {
+    authFetch(`${API_URL}/api/cart`, {
       method: "POST",
       body:   JSON.stringify({ product_id: id }),
     }).then(() => {
@@ -321,7 +324,7 @@ function AppContent() {
   };
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/products")
+    fetch(`${API_URL}/api/products`)
       .then(r => r.json())
       .then(setProducts);
     fetchCartCount();
