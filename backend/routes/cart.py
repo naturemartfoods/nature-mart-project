@@ -1,12 +1,8 @@
 from flask import Blueprint, request, jsonify
 from routes.auth import token_required
-import sqlite3
-import os
+from models import connect_db
 
 cart_bp = Blueprint('cart', __name__)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, "../database.db")
 
 
 @cart_bp.route('/cart', methods=['POST'])
@@ -16,17 +12,17 @@ def add_to_cart():
     product_id = data.get("product_id")
     user_id    = request.user_id
 
-    conn = sqlite3.connect(db_path)
+    conn = connect_db()
     cur  = conn.cursor()
 
-    cur.execute("SELECT * FROM cart WHERE product_id=? AND user_id=?", (product_id, user_id))
+    cur.execute("SELECT * FROM cart WHERE product_id=%s AND user_id=%s", (product_id, user_id))
     item = cur.fetchone()
 
     if item:
-        cur.execute("UPDATE cart SET quantity = quantity + 1 WHERE product_id=? AND user_id=?",
+        cur.execute("UPDATE cart SET quantity = quantity + 1 WHERE product_id=%s AND user_id=%s",
                     (product_id, user_id))
     else:
-        cur.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, 1)",
+        cur.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (%s, %s, 1)",
                     (user_id, product_id))
 
     conn.commit()
@@ -34,19 +30,18 @@ def add_to_cart():
     return jsonify({"message": "Added to cart"})
 
 
-# ✅ FIX 4: Removed duplicate get_cart — only ONE definition kept
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
     user_id = request.user_id
-    conn    = sqlite3.connect(db_path)
+    conn    = connect_db()
     cur     = conn.cursor()
 
     cur.execute("""
         SELECT products.id, products.name, products.price, products.image, cart.quantity
         FROM cart
         JOIN products ON cart.product_id = products.id
-        WHERE cart.user_id = ?
+        WHERE cart.user_id = %s
     """, (user_id,))
 
     rows  = cur.fetchall()
@@ -66,19 +61,15 @@ def get_cart():
             "subtotal": subtotal
         })
 
-    # ✅ Always return safe structure
-    return jsonify({
-        "items": cart_items,
-        "total": total
-    })
+    return jsonify({"items": cart_items, "total": total})
 
 
 @cart_bp.route('/cart/increase/<int:id>', methods=['PUT'])
 @token_required
 def increase_quantity(id):
-    conn = sqlite3.connect(db_path)
+    conn = connect_db()
     cur  = conn.cursor()
-    cur.execute("UPDATE cart SET quantity = quantity + 1 WHERE product_id=? AND user_id=?",
+    cur.execute("UPDATE cart SET quantity = quantity + 1 WHERE product_id=%s AND user_id=%s",
                 (id, request.user_id))
     conn.commit()
     conn.close()
@@ -88,16 +79,16 @@ def increase_quantity(id):
 @cart_bp.route('/cart/decrease/<int:id>', methods=['PUT'])
 @token_required
 def decrease_quantity(id):
-    conn = sqlite3.connect(db_path)
+    conn = connect_db()
     cur  = conn.cursor()
-    cur.execute("SELECT quantity FROM cart WHERE product_id=? AND user_id=?",
+    cur.execute("SELECT quantity FROM cart WHERE product_id=%s AND user_id=%s",
                 (id, request.user_id))
     qty = cur.fetchone()
     if qty and qty[0] > 1:
-        cur.execute("UPDATE cart SET quantity = quantity - 1 WHERE product_id=? AND user_id=?",
+        cur.execute("UPDATE cart SET quantity = quantity - 1 WHERE product_id=%s AND user_id=%s",
                     (id, request.user_id))
     else:
-        cur.execute("DELETE FROM cart WHERE product_id=? AND user_id=?",
+        cur.execute("DELETE FROM cart WHERE product_id=%s AND user_id=%s",
                     (id, request.user_id))
     conn.commit()
     conn.close()
@@ -107,9 +98,9 @@ def decrease_quantity(id):
 @cart_bp.route('/cart/remove/<int:id>', methods=['DELETE'])
 @token_required
 def remove_item(id):
-    conn = sqlite3.connect(db_path)
+    conn = connect_db()
     cur  = conn.cursor()
-    cur.execute("DELETE FROM cart WHERE product_id=? AND user_id=?", (id, request.user_id))
+    cur.execute("DELETE FROM cart WHERE product_id=%s AND user_id=%s", (id, request.user_id))
     conn.commit()
     conn.close()
     return jsonify({"message": "Item removed"})
@@ -119,14 +110,14 @@ def remove_item(id):
 @token_required
 def checkout():
     user_id = request.user_id
-    conn    = sqlite3.connect(db_path)
+    conn    = connect_db()
     cur     = conn.cursor()
 
     cur.execute("""
         SELECT products.id, products.price, cart.quantity
         FROM cart
         JOIN products ON cart.product_id = products.id
-        WHERE cart.user_id = ?
+        WHERE cart.user_id = %s
     """, (user_id,))
     items = cur.fetchall()
 
@@ -141,10 +132,10 @@ def checkout():
         total_amount += total
         cur.execute("""
             INSERT INTO orders (user_id, product_id, quantity, price, total)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
         """, (user_id, product_id, quantity, price, total))
 
-    cur.execute("DELETE FROM cart WHERE user_id=?", (user_id,))
+    cur.execute("DELETE FROM cart WHERE user_id=%s", (user_id,))
     conn.commit()
     conn.close()
 
