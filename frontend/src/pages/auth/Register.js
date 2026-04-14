@@ -6,6 +6,7 @@ import "./Auth.css";
 export default function Register() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const API_URL = "https://your-backend.onrender.com";
 
   const [form, setForm]   = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
@@ -20,7 +21,7 @@ export default function Register() {
     if (form.password.length < 6)       { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
-      const res  = await fetch("http://localhost:5000/api/auth/register", {
+      const res  = await fetch(`${API_URL}/api/auth/register`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ name: form.name, email: form.email, password: form.password }),

@@ -6,8 +6,10 @@ function Cart({ onOrderPlaced }) {
   const [placing, setPlacing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
+  const API_URL = "https://your-backend.onrender.com"
+
   const loadCart = () => {
-    fetch("http://localhost:5000/api/cart")
+    fetch(`${API_URL}/api/cart`)
       .then(res => res.json())
       .then(data => {
         setCart(data);
@@ -19,23 +21,23 @@ function Cart({ onOrderPlaced }) {
   useEffect(() => { loadCart(); }, []);
 
   const increase = (id) => {
-    fetch(`http://localhost:5000/api/cart/increase/${id}`, { method: "PUT" })
+    fetch(`${API_URL}/api/cart/increase/${id}`, { method: "PUT" })
       .then(() => loadCart());
   };
 
   const decrease = (id) => {
-    fetch(`http://localhost:5000/api/cart/decrease/${id}`, { method: "PUT" })
+    fetch(`${API_URL}/api/cart/decrease/${id}`, { method: "PUT" })
       .then(() => loadCart());
   };
 
   const removeItem = (id) => {
-    fetch(`http://localhost:5000/api/cart/remove/${id}`, { method: "DELETE" })
+    fetch(`${API_URL}/api/cart/remove/${id}`, { method: "DELETE" })
       .then(() => loadCart());
   };
 
   const checkout = () => {
     setPlacing(true);
-    fetch("http://localhost:5000/api/cart/checkout", { method: "POST" })
+    fetch(`${API_URL}/api/cart/checkout`, { method: "POST" })
       .then(res => res.json())
       .then(data => {
         setPlacing(false);
@@ -82,7 +84,7 @@ function Cart({ onOrderPlaced }) {
               <div className="cart-item" key={item.id}>
                 <div className="cart-item-img">
                   <img
-                    src={`http://localhost:5000${item.image}`}
+                    src={item.image}
                     alt={item.name}
                   />
                 </div>

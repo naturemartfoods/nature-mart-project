@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const API_URL = "https://your-backend.onrender.com";
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/orders")
+    fetch(`${API_URL}/api/orders`)
       .then(res => res.json())
       .then(data => {
         setOrders(data.orders || []);

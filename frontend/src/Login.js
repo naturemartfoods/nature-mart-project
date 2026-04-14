@@ -5,9 +5,10 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const API_URL = "https://your-backend.onrender.com";
 
   const handleLogin = () => {
-    fetch("http://localhost:5000/api/login", {
+    fetch(`${API_URL}/api/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

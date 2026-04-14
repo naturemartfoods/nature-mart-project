@@ -6,9 +6,10 @@ export default function AdminUsers() {
   const { authFetch } = useAuth();
   const [users, setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const API_URL = "https://your-backend.onrender.com"
 
   const load = () => {
-    authFetch("http://localhost:5000/api/admin/users")
+    authFetch(`${API_URL}/api/admin/users`)
       .then(r => r.json())
       .then(d => { setUsers(d); setLoading(false); });
   };
@@ -16,13 +17,13 @@ export default function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const toggle = async (id) => {
-    await authFetch(`http://localhost:5000/api/admin/users/${id}/toggle`, { method: "PUT" });
+    authFetch(`${API_URL}/api/admin/users/${id}/toggle`, { method: "PUT" })
     load();
   };
 
   const remove = async (id) => {
     if (!window.confirm("Delete this user?")) return;
-    await authFetch(`http://localhost:5000/api/admin/users/${id}`, { method: "DELETE" });
+    authFetch(`${API_URL}/api/admin/users/${id}`, { method: "DELETE" })
     load();
   };
 

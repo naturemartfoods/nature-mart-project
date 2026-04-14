@@ -5,9 +5,10 @@ import "./Admin.css";
 export default function AdminDashboard() {
   const { authFetch } = useAuth();
   const [stats, setStats] = useState(null);
+  const API_URL = "https://your-backend.onrender.com";
 
   useEffect(() => {
-    authFetch("http://localhost:5000/api/admin/dashboard")
+    authFetch(`${API_URL}/api/admin/dashboard`)
       .then(r => r.json())
       .then(setStats);
   }, []);

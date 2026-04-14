@@ -8,6 +8,7 @@ export default function Profile() {
   const [msg, setMsg]       = useState("");
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
+  const API_URL = "https://your-backend.onrender.com";
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -21,7 +22,7 @@ export default function Profile() {
     const body = { name: form.name };
     if (form.password) body.password = form.password;
 
-    const res  = await authFetch("http://localhost:5000/api/auth/profile", {
+    const res  = await authFetch(`${API_URL}/api/auth/profile`, {
       method: "PUT", body: JSON.stringify(body),
     });
     const data = await res.json();

@@ -9,9 +9,10 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState("all");
+  const API_URL = "https://your-backend.onrender.com";
 
   const load = () => {
-    authFetch("http://localhost:5000/api/admin/orders")
+    authFetch(`${API_URL}/api/admin/orders`)
       .then(r => r.json())
       .then(d => { setOrders(d); setLoading(false); });
   };
@@ -19,7 +20,7 @@ export default function AdminOrders() {
   useEffect(() => { load(); }, []);
 
   const updateStatus = async (id, status) => {
-    await authFetch(`http://localhost:5000/api/admin/orders/${id}/status`, {
+    await authFetch(`${API_URL}/api/admin/orders/${id}/status`, {
       method: "PUT",
       body:   JSON.stringify({ status }),
     });

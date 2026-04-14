@@ -3,6 +3,7 @@ import { useAuth } from "../../AuthContext";
 import "./Admin.css";
 
 const EMPTY = { name: "", price: "", description: "", weight: "", stock: 100, image: "" };
+const API_URL = "https://your-backend.onrender.com";
 
 export default function AdminProducts() {
   const { authFetch } = useAuth();
@@ -14,7 +15,7 @@ export default function AdminProducts() {
   const [saving, setSaving]     = useState(false);
 
   const load = () => {
-    authFetch("http://localhost:5000/api/admin/products")
+    authFetch(`${API_URL}/api/admin/products`)
       .then(r => r.json())
       .then(d => { setProducts(d); setLoading(false); });
   };
@@ -35,8 +36,8 @@ export default function AdminProducts() {
     e.preventDefault();
     setSaving(true);
     const url    = modal === "add"
-      ? "http://localhost:5000/api/admin/products"
-      : `http://localhost:5000/api/admin/products/${editId}`;
+      ? `${API_URL}//api/admin/products`
+      : `${API_URL}//api/admin/products/${editId}`;
     const method = modal === "add" ? "POST" : "PUT";
     await authFetch(url, { method, body: JSON.stringify({ ...form, price: Number(form.price), stock: Number(form.stock) }) });
     setSaving(false);
@@ -46,7 +47,7 @@ export default function AdminProducts() {
 
   const remove = async (id) => {
     if (!window.confirm("Delete this product?")) return;
-    await authFetch(`http://localhost:5000/api/admin/products/${id}`, { method: "DELETE" });
+    await authFetch(`${API_URL}//api/admin/products/${id}`, { method: "DELETE" });
     load();
   };
 
@@ -74,7 +75,7 @@ export default function AdminProducts() {
                   <td>#{p.id}</td>
                   <td>
                     {p.image
-                      ? <img src={`http://localhost:5000${p.image}`} alt={p.name} className="product-thumb" />
+                      ? <img src={p.image} alt={p.name} className="product-thumb" />
                       : <div className="product-thumb-placeholder">🌿</div>}
                   </td>
                   <td className="td-name">{p.name}</td>
