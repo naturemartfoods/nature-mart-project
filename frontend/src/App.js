@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
@@ -12,10 +11,12 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminUsers from "./pages/admin/AdminUsers";
+import Checkout from "./pages/Checkout";
 
 import "./App.css";
 
 const API_URL = "https://nature-mart-project.onrender.com";
+
 // ── Protected route wrapper ──────────────────────────────────
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -26,7 +27,7 @@ function RequireAuth({ children }) {
 function RequireAdmin({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user)              return <Navigate to="/login"  replace />;
+  if (!user)                 return <Navigate to="/login" replace />;
   if (user.role !== "admin") return <Navigate to="/" replace />;
   return children;
 }
@@ -36,7 +37,7 @@ function NavBar({ cartCount }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const isAdmin  = location.pathname.startsWith("/admin");
-  if (isAdmin) return null; // admin has its own sidebar
+  if (isAdmin) return null;
 
   return (
     <nav className="navbar">
@@ -85,7 +86,16 @@ function ProductCard({ product, onAddToCart, added }) {
   return (
     <div className={`card ${added ? "card-added" : ""}`}>
       <div className="card-img-wrap">
-        <img src={product.image} alt={product.name} />
+        {/* <img src={product.image} alt={product.name} /> */}
+        <img
+          src={
+            product.image?.startsWith("http")
+              ? product.image
+              : `${API_URL}/images/${product.image}`
+          }
+          alt={product.name}
+          onError={(e) => (e.target.src = "/placeholder.png")}
+        />
         <div className="card-img-overlay">
           <span className="tag-natural">Natural</span>
         </div>
@@ -128,7 +138,12 @@ function Home({ products, onAddToCart, addedIds }) {
             <div className="empty-state"><div className="spinner"></div><p>Loading products…</p></div>
           ) : (
             products.map(product => (
-              <ProductCard key={product.id} product={product} onAddToCart={onAddToCart} added={addedIds.includes(product.id)} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={onAddToCart}
+                added={addedIds.includes(product.id)}
+              />
             ))
           )}
         </div>
@@ -137,13 +152,12 @@ function Home({ products, onAddToCart, addedIds }) {
   );
 }
 
-// ── App content (needs Router context) ───────────────────────
+// ── App content ───────────────────────────────────────────────
 function AppContent() {
   const { user, authFetch } = useAuth();
   const [products, setProducts] = useState([]);
   const [addedIds, setAddedIds] = useState([]);
   const [cartCount, setCartCount] = useState(0);
-  
 
   const fetchCartCount = () => {
     if (!user) { setCartCount(0); return; }
@@ -183,9 +197,19 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
 
           {/* User protected */}
-          <Route path="/cart"    element={<RequireAuth><Cart onOrderPlaced={fetchCartCount} /></RequireAuth>} />
-          <Route path="/orders"  element={<RequireAuth><Orders /></RequireAuth>} />
-          <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+          {/* <Route path="/cart"     element={<RequireAuth><Cart onOrderPlaced={fetchCartCount} /></RequireAuth>} /> */}
+            <Route
+              path="/cart"
+              element={
+                <RequireAuth>
+                  <Cart updateCartCount={fetchCartCount} />
+                </RequireAuth>
+              }
+            />
+          <Route path="/orders"   element={<RequireAuth><Orders /></RequireAuth>} />
+          <Route path="/profile"  element={<RequireAuth><Profile /></RequireAuth>} />
+          {/* FIX: replaced undefined PrivateRoute with RequireAuth */}
+          <Route path="/checkout" element={<RequireAuth><Checkout onOrderPlaced={fetchCartCount} /></RequireAuth>} />
 
           {/* Admin protected */}
           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>

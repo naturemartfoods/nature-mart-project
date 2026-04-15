@@ -1,215 +1,411 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../AuthContext";
+import config from "../config";
+import "./Checkout.css";
 
-const API_URL = "https://nature-mart-project.onrender.com";
+const STEPS = ["Delivery", "Payment", "Confirm"];
 
-function Checkout({ cart, onOrderPlaced }) {
+export default function Checkout() {
+  const { user, authFetch } = useAuth();       // ✅ authFetch instead of user.token
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [details, setDetails] = useState({ name: "", phone: "", address: "" });
-  const [payMethod, setPayMethod] = useState("cod");
-  const [placing, setPlacing] = useState(false);
-  const [errors, setErrors] = useState({});
+  const location = useLocation();
+  const { cartItems = [], subtotal = 0, shipping = 0, total = 0 } = location.state || {};
 
-  const authHeaders = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("nm_token")}`,
+  const [step, setStep] = useState(0);
+  const [address, setAddress] = useState({
+    full_name: "", phone: "", address_line: "", city: "", state: "", pincode: "",
   });
+  const [errors, setErrors] = useState({});
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [card, setCard] = useState({ number: "", name: "", expiry: "", cvv: "" });
+  const [processing, setProcessing] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+  const [gatewayStep, setGatewayStep] = useState("form");
 
-  const validate = () => {
+  useEffect(() => {
+    if (!user) navigate("/login");
+    if (!cartItems.length) navigate("/cart");
+  }, []);
+
+  // ─── Validation ────────────────────────────────────────────────────────────
+  const validateAddress = () => {
     const e = {};
-    if (!details.name.trim())            e.name    = "Name is required";
-    if (!/^[6-9]\d{9}$/.test(details.phone)) e.phone = "Enter a valid 10-digit number";
-    if (!details.address.trim())         e.address = "Address is required";
+    if (!address.full_name.trim()) e.full_name = "Full name is required";
+    if (!/^[6-9]\d{9}$/.test(address.phone)) e.phone = "Enter valid 10-digit mobile number";
+    if (!address.address_line.trim()) e.address_line = "Address is required";
+    if (!address.city.trim()) e.city = "City is required";
+    if (!address.state.trim()) e.state = "State is required";
+    if (!/^\d{6}$/.test(address.pincode)) e.pincode = "Enter valid 6-digit PIN code";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => {
-    if (step === 1 && !validate()) return;
-    setStep((s) => s + 1);
+  const validatePayment = () => {
+    if (!paymentMethod) { setErrors({ payment: "Please select a payment method" }); return false; }
+    if (paymentMethod === "upi") {
+      if (!/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/.test(upiId)) {
+        setErrors({ upi: "Enter a valid UPI ID (e.g. name@upi)" }); return false;
+      }
+    }
+    if (paymentMethod === "card") {
+      const e = {};
+      if (!/^\d{16}$/.test(card.number.replace(/\s/g, ""))) e.cardNumber = "Enter valid 16-digit card number";
+      if (!card.name.trim()) e.cardName = "Cardholder name required";
+      if (!/^\d{2}\/\d{2}$/.test(card.expiry)) e.cardExpiry = "Enter expiry as MM/YY";
+      if (!/^\d{3,4}$/.test(card.cvv)) e.cardCvv = "Enter valid CVV";
+      setErrors(e);
+      return Object.keys(e).length === 0;
+    }
+    setErrors({});
+    return true;
   };
 
+  // ─── Place Order API ────────────────────────────────────────────────────────
   const placeOrder = async () => {
-    setPlacing(true);
+    setProcessing(true);
     try {
-      const res = await fetch(`${API_URL}/api/cart/checkout`, {
+      const res = await authFetch(`${config.API_URL}/api/orders/place`, {  // ✅ fixed: authFetch + correct URL
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify({
-          name:           details.name,
-          phone:          details.phone,
-          address:        details.address,
-          payment_method: payMethod,
+          delivery_address: address,
+          payment_method: paymentMethod,
+          items: cartItems,
+          subtotal,
+          shipping,
+          total,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        if (onOrderPlaced) onOrderPlaced();
-        navigate("/orders");
+        setOrderId(data.order_id);
+        setOrderPlaced(true);
+        setGatewayStep("success");
       } else {
-        alert(data.message || "Something went wrong");
+        setGatewayStep("failed");
       }
     } catch {
-      alert("Network error. Please try again.");
+      setGatewayStep("failed");
     } finally {
-      setPlacing(false);
+      setProcessing(false);
     }
   };
 
-  const stepLabels = ["Delivery", "Payment", "Review"];
+  // ─── Gateway Simulation ─────────────────────────────────────────────────────
+  const handleGatewayPayment = () => {
+    if (!validatePayment()) return;
+    setGatewayStep("processing");
+    setTimeout(() => { placeOrder(); }, 2500);
+  };
+
+  const handleCOD = async () => {
+    setProcessing(true);
+    await placeOrder();
+  };
+
+  // ─── Formatters ────────────────────────────────────────────────────────────
+  const formatCard = (val) => val.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim().slice(0, 19);
+  const formatExpiry = (val) => {
+    const v = val.replace(/\D/g, "").slice(0, 4);
+    return v.length > 2 ? `${v.slice(0, 2)}/${v.slice(2)}` : v;
+  };
+
+  // ─── Step Navigation ───────────────────────────────────────────────────────
+  const handleNextStep = () => {
+    if (step === 0 && validateAddress()) setStep(1);
+    else if (step === 1 && validatePayment()) setStep(2);
+  };
+
+  // ─── Order Success Screen ──────────────────────────────────────────────────
+  if (orderPlaced) {
+    return (
+      <div className="co-success-page">
+        <div className="co-success-card">
+          <div className="co-success-icon">✅</div>
+          <h1>Order Placed!</h1>
+          <p>Thank you, <strong>{address.full_name}</strong>!</p>
+          <p>Your order <strong>#{orderId}</strong> has been confirmed.</p>
+          <div className="co-success-detail">
+            <span>📦 Estimated delivery: 3–5 business days</span>
+            <span>📍 {address.address_line}, {address.city} - {address.pincode}</span>
+            <span>💳 Payment: {paymentMethod === "cod" ? "Cash on Delivery" : paymentMethod === "upi" ? "UPI" : "Card"}</span>
+          </div>
+          <div className="co-success-actions">
+            <button className="co-btn-primary" onClick={() => navigate("/orders")}>View Orders</button>
+            <button className="co-btn-outline" onClick={() => navigate("/")}>Continue Shopping</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Gateway Processing Screen ─────────────────────────────────────────────
+  if (gatewayStep === "processing") {
+    return (
+      <div className="co-gateway-page">
+        <div className="co-gateway-card">
+          <div className="co-spinner" />
+          <h2>Processing Payment...</h2>
+          <p>Please don't close this window</p>
+          <div className="co-gateway-logo">
+            {paymentMethod === "upi" ? "📲 Connecting to UPI Gateway" : "🔐 Verifying Card Details"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gatewayStep === "failed") {
+    return (
+      <div className="co-gateway-page">
+        <div className="co-gateway-card co-failed">
+          <div className="co-fail-icon">❌</div>
+          <h2>Payment Failed</h2>
+          <p>Something went wrong. Please try again.</p>
+          <button className="co-btn-primary" onClick={() => { setGatewayStep("form"); setStep(1); }}>
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="checkout-page">
-
+    <div className="co-page">
       {/* Stepper */}
-      <div className="stepper">
-        {stepLabels.map((label, i) => (
-          <div className="stepper-item" key={i}>
-            <div className={`stepper-circle ${step > i + 1 ? "done" : step === i + 1 ? "active" : ""}`}>
-              {step > i + 1 ? "✓" : i + 1}
+      <div className="co-stepper">
+        {STEPS.map((s, i) => (
+          <React.Fragment key={s}>
+            <div className={`co-step ${i <= step ? "co-step-active" : ""} ${i < step ? "co-step-done" : ""}`}>
+              <div className="co-step-circle">{i < step ? "✓" : i + 1}</div>
+              <span>{s}</span>
             </div>
-            <span className="stepper-label">{label}</span>
-            {i < stepLabels.length - 1 && (
-              <div className={`stepper-line ${step > i + 1 ? "done" : ""}`} />
-            )}
-          </div>
+            {i < STEPS.length - 1 && <div className={`co-step-line ${i < step ? "co-step-line-done" : ""}`} />}
+          </React.Fragment>
         ))}
       </div>
 
-      {/* Step 1 — Delivery */}
-      {step === 1 && (
-        <div className="checkout-card">
-          <h2 className="checkout-section-title">Delivery details</h2>
+      <div className="co-layout">
+        {/* ── Left Panel ── */}
+        <div className="co-main">
 
-          <div className="field">
-            <label>Full name</label>
-            <input
-              type="text"
-              placeholder="Ravi Shah"
-              value={details.name}
-              onChange={(e) => setDetails({ ...details, name: e.target.value })}
-            />
-            {errors.name && <span className="field-error">{errors.name}</span>}
-          </div>
-
-          <div className="field">
-            <label>Phone number</label>
-            <input
-              type="tel"
-              placeholder="9876543210"
-              value={details.phone}
-              onChange={(e) => setDetails({ ...details, phone: e.target.value })}
-            />
-            {errors.phone && <span className="field-error">{errors.phone}</span>}
-          </div>
-
-          <div className="field">
-            <label>Delivery address</label>
-            <textarea
-              rows={3}
-              placeholder="Flat 12, Green Park, Surat 395001"
-              value={details.address}
-              onChange={(e) => setDetails({ ...details, address: e.target.value })}
-            />
-            {errors.address && <span className="field-error">{errors.address}</span>}
-          </div>
-
-          <button className="btn-checkout" onClick={handleNext}>
-            Continue to payment →
-          </button>
-        </div>
-      )}
-
-      {/* Step 2 — Payment */}
-      {step === 2 && (
-        <div className="checkout-card">
-          <h2 className="checkout-section-title">Payment method</h2>
-
-          <div className="pay-options">
-            <button
-              className={`pay-btn ${payMethod === "cod" ? "selected" : ""}`}
-              onClick={() => setPayMethod("cod")}
-            >
-              💵 Cash on delivery
-            </button>
-            <button
-              className={`pay-btn ${payMethod === "online" ? "selected" : ""}`}
-              onClick={() => setPayMethod("online")}
-            >
-              💳 Pay online
-            </button>
-          </div>
-
-          {payMethod === "online" && (
-            <div className="gateway-box">
-              <p className="gateway-note">
-                🔌 Payment gateway coming soon. Use COD for now.
-              </p>
-              {/* TODO: Drop Razorpay SDK here when ready */}
-            </div>
-          )}
-
-          {payMethod === "cod" && (
-            <div className="cod-note">
-              Pay with cash when your order arrives at your door.
-            </div>
-          )}
-
-          <div className="checkout-actions">
-            <button className="btn-back" onClick={() => setStep(1)}>← Back</button>
-            <button className="btn-checkout" onClick={handleNext}>
-              Review order →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3 — Review */}
-      {step === 3 && (
-        <div className="checkout-card">
-          <h2 className="checkout-section-title">Review your order</h2>
-
-          <div className="review-items">
-            {cart.items.map((item) => (
-              <div className="review-row" key={item.id}>
-                <span>{item.name} ×{item.quantity}</span>
-                <span>₹{item.subtotal}</span>
+          {/* STEP 0: Delivery Address */}
+          {step === 0 && (
+            <div className="co-section">
+              <h2 className="co-section-title">📍 Delivery Address</h2>
+              <div className="co-form-grid">
+                <div className="co-field co-full">
+                  <label>Full Name *</label>
+                  <input value={address.full_name} onChange={e => setAddress({ ...address, full_name: e.target.value })} placeholder="Enter your full name" />
+                  {errors.full_name && <span className="co-err">{errors.full_name}</span>}
+                </div>
+                <div className="co-field co-full">
+                  <label>Mobile Number *</label>
+                  <input value={address.phone} maxLength={10} onChange={e => setAddress({ ...address, phone: e.target.value.replace(/\D/g, "") })} placeholder="10-digit mobile number" />
+                  {errors.phone && <span className="co-err">{errors.phone}</span>}
+                </div>
+                <div className="co-field co-full">
+                  <label>Address *</label>
+                  <textarea value={address.address_line} onChange={e => setAddress({ ...address, address_line: e.target.value })} placeholder="House No., Street, Area, Landmark" rows={3} />
+                  {errors.address_line && <span className="co-err">{errors.address_line}</span>}
+                </div>
+                <div className="co-field">
+                  <label>City *</label>
+                  <input value={address.city} onChange={e => setAddress({ ...address, city: e.target.value })} placeholder="City" />
+                  {errors.city && <span className="co-err">{errors.city}</span>}
+                </div>
+                <div className="co-field">
+                  <label>State *</label>
+                  <select value={address.state} onChange={e => setAddress({ ...address, state: e.target.value })}>
+                    <option value="">Select State</option>
+                    {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi","Jammu & Kashmir","Ladakh"].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  {errors.state && <span className="co-err">{errors.state}</span>}
+                </div>
+                <div className="co-field">
+                  <label>PIN Code *</label>
+                  <input value={address.pincode} maxLength={6} onChange={e => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "") })} placeholder="6-digit PIN code" />
+                  {errors.pincode && <span className="co-err">{errors.pincode}</span>}
+                </div>
               </div>
-            ))}
-            <div className="review-row muted">
-              <span>Delivery</span>
-              <span className="free-tag">Free</span>
+              <button className="co-btn-primary co-next-btn" onClick={handleNextStep}>
+                Continue to Payment →
+              </button>
             </div>
-            <div className="review-row review-total">
-              <span>Total</span>
-              <span>₹{cart.total}</span>
-            </div>
-          </div>
+          )}
 
-          <div className="delivery-summary">
-            <div className="ds-row"><span>Name</span><strong>{details.name}</strong></div>
-            <div className="ds-row"><span>Phone</span><strong>{details.phone}</strong></div>
-            <div className="ds-row"><span>Address</span><strong>{details.address}</strong></div>
-            <div className="ds-row"><span>Payment</span>
-              <strong>{payMethod === "cod" ? "Cash on delivery" : "Online payment"}</strong>
-            </div>
-          </div>
+          {/* STEP 1: Payment */}
+          {step === 1 && (
+            <div className="co-section">
+              <h2 className="co-section-title">💳 Payment Method</h2>
+              {errors.payment && <p className="co-err">{errors.payment}</p>}
 
-          <div className="checkout-actions">
-            <button className="btn-back" onClick={() => setStep(2)}>← Back</button>
-            <button
-              className={`btn-checkout ${placing ? "btn-loading" : ""}`}
-              onClick={placeOrder}
-              disabled={placing}
-            >
-              {placing ? "Placing order…" : "Place order →"}
-            </button>
-          </div>
+              <div className="co-payment-options">
+                <div
+                  className={`co-pay-card ${paymentMethod === "upi" ? "co-pay-selected" : ""}`}
+                  onClick={() => { setPaymentMethod("upi"); setUpiId(""); }}
+                >
+                  <div className="co-pay-icon co-phonepee">
+                    <svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="20" fill="#5f259f"/><text x="50%" y="55%" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" dy=".3em">Pe</text></svg>
+                  </div>
+                  <div className="co-pay-label">
+                    <strong>PhonePe / UPI</strong>
+                    <span>Pay using any UPI app</span>
+                  </div>
+                  <div className="co-pay-radio">{paymentMethod === "upi" ? "🔘" : "⚪"}</div>
+                </div>
+
+                <div
+                  className={`co-pay-card ${paymentMethod === "card" ? "co-pay-selected" : ""}`}
+                  onClick={() => setPaymentMethod("card")}
+                >
+                  <div className="co-pay-icon co-card-icon">💳</div>
+                  <div className="co-pay-label">
+                    <strong>Credit / Debit Card</strong>
+                    <span>Visa, Mastercard, RuPay</span>
+                  </div>
+                  <div className="co-pay-radio">{paymentMethod === "card" ? "🔘" : "⚪"}</div>
+                </div>
+
+                <div
+                  className={`co-pay-card ${paymentMethod === "cod" ? "co-pay-selected" : ""}`}
+                  onClick={() => setPaymentMethod("cod")}
+                >
+                  <div className="co-pay-icon co-cod-icon">💵</div>
+                  <div className="co-pay-label">
+                    <strong>Cash on Delivery</strong>
+                    <span>Pay when you receive</span>
+                  </div>
+                  <div className="co-pay-radio">{paymentMethod === "cod" ? "🔘" : "⚪"}</div>
+                </div>
+              </div>
+
+              {paymentMethod === "upi" && (
+                <div className="co-payment-detail">
+                  <h3>Enter UPI ID</h3>
+                  <input
+                    className="co-upi-input"
+                    value={upiId}
+                    onChange={e => setUpiId(e.target.value)}
+                    placeholder="yourname@upi / @okaxis / @ybl"
+                  />
+                  {errors.upi && <span className="co-err">{errors.upi}</span>}
+                  <p className="co-pay-hint">📲 After clicking Pay, confirm payment in your UPI app</p>
+                </div>
+              )}
+
+              {paymentMethod === "card" && (
+                <div className="co-payment-detail co-card-form">
+                  <h3>Card Details</h3>
+                  <div className="co-field co-full">
+                    <label>Card Number</label>
+                    <input maxLength={19} value={card.number} onChange={e => setCard({ ...card, number: formatCard(e.target.value) })} placeholder="1234 5678 9012 3456" />
+                    {errors.cardNumber && <span className="co-err">{errors.cardNumber}</span>}
+                  </div>
+                  <div className="co-field co-full">
+                    <label>Cardholder Name</label>
+                    <input value={card.name} onChange={e => setCard({ ...card, name: e.target.value })} placeholder="Name on card" />
+                    {errors.cardName && <span className="co-err">{errors.cardName}</span>}
+                  </div>
+                  <div className="co-field">
+                    <label>Expiry (MM/YY)</label>
+                    <input maxLength={5} value={card.expiry} onChange={e => setCard({ ...card, expiry: formatExpiry(e.target.value) })} placeholder="MM/YY" />
+                    {errors.cardExpiry && <span className="co-err">{errors.cardExpiry}</span>}
+                  </div>
+                  <div className="co-field">
+                    <label>CVV</label>
+                    <input type="password" maxLength={4} value={card.cvv} onChange={e => setCard({ ...card, cvv: e.target.value.replace(/\D/g, "") })} placeholder="•••" />
+                    {errors.cardCvv && <span className="co-err">{errors.cardCvv}</span>}
+                  </div>
+                  <p className="co-secure-badge">🔒 Your card details are encrypted and secure</p>
+                </div>
+              )}
+
+              {paymentMethod === "cod" && (
+                <div className="co-payment-detail co-cod-note">
+                  <p>📦 You'll pay <strong>₹{total.toFixed(2)}</strong> in cash when your order arrives.</p>
+                  <p>Please keep exact change ready.</p>
+                </div>
+              )}
+
+              <div className="co-nav-btns">
+                <button className="co-btn-outline" onClick={() => setStep(0)}>← Back</button>
+                <button className="co-btn-primary" onClick={handleNextStep}>Review Order →</button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Confirm */}
+          {step === 2 && (
+            <div className="co-section">
+              <h2 className="co-section-title">✅ Review & Confirm</h2>
+
+              <div className="co-review-block">
+                <h3>📍 Delivery Address</h3>
+                <p><strong>{address.full_name}</strong> | 📞 {address.phone}</p>
+                <p>{address.address_line}</p>
+                <p>{address.city}, {address.state} - {address.pincode}</p>
+                <button className="co-edit-link" onClick={() => setStep(0)}>Edit</button>
+              </div>
+
+              <div className="co-review-block">
+                <h3>💳 Payment</h3>
+                <p>
+                  {paymentMethod === "cod" && "💵 Cash on Delivery"}
+                  {paymentMethod === "upi" && `📲 UPI — ${upiId}`}
+                  {paymentMethod === "card" && `💳 Card ending in ****${card.number.slice(-4)}`}
+                </p>
+                <button className="co-edit-link" onClick={() => setStep(1)}>Edit</button>
+              </div>
+
+              <div className="co-review-block">
+                <h3>🛍 Items ({cartItems.length})</h3>
+                {cartItems.map(item => (
+                  <div className="co-review-item" key={item.product_id}>
+                    <span>{item.name} × {item.quantity}</span>
+                    <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="co-nav-btns">
+                <button className="co-btn-outline" onClick={() => setStep(1)}>← Back</button>
+                {paymentMethod === "cod" ? (
+                  <button className="co-btn-primary co-confirm-btn" onClick={handleCOD} disabled={processing}>
+                    {processing ? "Placing Order..." : "✅ Confirm Order"}
+                  </button>
+                ) : (
+                  <button className="co-btn-pay co-confirm-btn" onClick={handleGatewayPayment} disabled={processing}>
+                    {processing ? "Processing..." : `💳 Pay ₹${total.toFixed(2)}`}
+                  </button>
+                )}
+              </div>
+              <p className="co-secure-note">🔒 Safe & Secure Payment</p>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* ── Right Panel: Price Summary ── */}
+        <div className="co-sidebar">
+          <h3>Price Summary</h3>
+          {cartItems.map(item => (
+            <div className="co-sidebar-item" key={item.product_id}>
+              <span>{item.name} × {item.quantity}</span>
+              <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="co-sidebar-divider" />
+          <div className="co-sidebar-row"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+          <div className="co-sidebar-row"><span>Shipping</span><span>{shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}</span></div>
+          <div className="co-sidebar-divider" />
+          <div className="co-sidebar-row co-sidebar-total"><span>Total</span><span>₹{total.toFixed(2)}</span></div>
+          <p className="co-gst-note">Inclusive of all taxes</p>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default Checkout;

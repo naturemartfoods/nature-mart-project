@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "../AuthContext";
+import config from "../config";
 import "../App.css";
 
 export default function Profile() {
-  const { user, authFetch, login, getToken } = useAuth();
-  const [form, setForm]     = useState({ name: user?.name || "", password: "", confirm: "" });
-  const [msg, setMsg]       = useState("");
-  const [error, setError]   = useState("");
+  const { user, authFetch, login, getToken } = useAuth();  // ✅ uses authFetch
+  const [form, setForm]       = useState({ name: user?.name || "", password: "", confirm: "" });
+  const [msg, setMsg]         = useState("");
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
-const API_URL = "https://nature-mart-project.onrender.com";
+
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {
@@ -21,12 +22,13 @@ const API_URL = "https://nature-mart-project.onrender.com";
     const body = { name: form.name };
     if (form.password) body.password = form.password;
 
-    const res  = await authFetch(`${API_URL}/api/auth/profile`, {
-      method: "PUT", body: JSON.stringify(body),
+    const res  = await authFetch(`${config.API_URL}/api/auth/profile`, {  // ✅ config.API_URL
+      method: "PUT",
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     setLoading(false);
-    if (!res.ok) { setError(data.error); return; }
+    if (!res.ok) { setError(data.error || "Update failed"); return; }
     login({ ...user, name: form.name }, getToken());
     setMsg("Profile updated successfully ✓");
     setForm(f => ({ ...f, password: "", confirm: "" }));

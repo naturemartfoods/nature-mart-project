@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 
 function Login() {
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-const API_URL = "https://nature-mart-project.onrender.com";
+  const API_URL = "https://nature-mart-project.onrender.com";
   const handleLogin = () => {
     fetch(`${API_URL}/api/login`, {
       method: "POST",
@@ -16,12 +18,18 @@ const API_URL = "https://nature-mart-project.onrender.com";
     })
     .then(res => res.json())
     .then(data => {
-      if (data.role === "admin") {
-        alert("Admin Login Successful");
-        navigate("/admin");
-      } else if (data.role === "user") {
-        alert("User Login Successful");
-        navigate("/");
+    console.log("LOGIN RESPONSE:", data);
+
+    if (data.token) {
+        login(data.user || data, data.token);  // ✅ SAVE TOKEN + USER
+
+        if (data.role === "admin") {
+          alert("Admin Login Successful");
+          navigate("/admin");
+        } else {
+          alert("User Login Successful");
+          navigate("/");
+        }
       } else {
         alert("Login failed");
       }

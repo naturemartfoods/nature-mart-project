@@ -1,216 +1,149 @@
-import { useEffect, useState, useCallback } from "react";
-import Checkout from "./pages/Checkout";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "./AuthContext";
+import config from "./config";
+import "./App.css";
 
-function Cart({ onOrderPlaced }) {
-  const [cart, setCart] = useState({ items: [], total: 0 });
+export default function Cart({ onOrderPlaced, updateCartCount }) {
+  const { user, authFetch } = useAuth();       // ✅ authFetch handles token automatically
+  const navigate = useNavigate();
+  const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [wakingUp, setWakingUp] = useState(false);
-  const [placing, setPlacing] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
+  const [error, setError] = useState("");
 
-  const API_URL = "https://nature-mart-project.onrender.com";
+  useEffect(() => {
+    if (!user) { navigate("/login"); return; }
+    fetchCart();
+  }, [user]);
 
-  const authHeaders = () => ({
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${localStorage.getItem("nm_token")}`,
-  });
-
-  // ✅ Retries up to `retries` times with a delay — handles Render cold start
-  const fetchWithRetry = useCallback(async (url, options = {}, retries = 5, delay = 3000) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const res = await fetch(url, options);
-
-        // If server returned a non-OK response (e.g. 503 while waking), wait and retry
-        if (!res.ok) {
-          if (i === 0) setWakingUp(true);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-
-        const data = await res.json();
-
-        // If response is missing expected fields, retry
-        if (data.items === undefined) {
-          if (i === 0) setWakingUp(true);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-
-        setWakingUp(false);
-        return data;
-
-      } catch (err) {
-        // Network error (server still asleep), wait and retry
-        if (i === 0) setWakingUp(true);
-        console.warn(`Attempt ${i + 1} failed:`, err.message);
-        await new Promise(r => setTimeout(r, delay));
-      }
-    }
-    throw new Error("Server unavailable after multiple retries.");
-  }, []);
-
-  const loadCart = useCallback(async () => {
+  const fetchCart = async () => {
     try {
-      const data = await fetchWithRetry(
-        `${API_URL}/api/cart`,
-        { headers: authHeaders() }
-      );
-      setCart({ items: data.items || [], total: data.total || 0 });
-    } catch (err) {
-      console.error("Could not load cart:", err.message);
-      setCart({ items: [], total: 0 });
+      const res = await authFetch(`${config.API_URL}/api/cart`);  // ✅ fixed URL + token
+      const data = await res.json();
+      setCartItems(data.items || []);
+     
+    } catch {
+      setError("Failed to load cart.");
     } finally {
       setLoading(false);
     }
-  }, [fetchWithRetry]);
-
-  useEffect(() => { loadCart(); }, [loadCart]);
-
-  const increase = (id) => {
-    fetch(`${API_URL}/api/cart/increase/${id}`, {
-      method: "PUT",
-      headers: authHeaders(),
-    }).then(() => loadCart());
   };
 
-  const decrease = (id) => {
-    fetch(`${API_URL}/api/cart/decrease/${id}`, {
-      method: "PUT",
-      headers: authHeaders(),
-    }).then(() => loadCart());
+  const getImageUrl = (img) => {
+    if (!img) return "/placeholder.png";
+    return img.startsWith("http")
+      ? img
+      : `${config.API_URL}/images/${img}`;
   };
 
-  const removeItem = (id) => {
-    fetch(`${API_URL}/api/cart/remove/${id}`, {
+  const updateQty = async (productId, newQty) => {
+    if (newQty < 1) return removeItem(productId);
+
+    const currentItem = cartItems.find((i) => i.id === productId);
+    if (!currentItem) return;
+
+    const isIncreasing = newQty > currentItem.quantity;
+    const endpoint = isIncreasing
+      ? `${config.API_URL}/api/cart/increase/${productId}`
+      : `${config.API_URL}/api/cart/decrease/${productId}`;
+      await authFetch(endpoint, { method: "PUT" });
+
+      await fetchCart();
+      if (updateCartCount) updateCartCount(); 
+  };
+
+  const removeItem = async (productId) => {
+    await authFetch(`${config.API_URL}/api/cart/remove/${productId}`, {
       method: "DELETE",
-      headers: authHeaders(),
-    }).then(() => loadCart());
+    });
+
+    await fetchCart();
+    if (updateCartCount) updateCartCount(); // ✅ OK here
   };
 
-  const checkout = () => {
-    setPlacing(true);
-    fetch(`${API_URL}/api/cart/checkout`, {
-      method: "POST",
-      headers: authHeaders(),
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setPlacing(false);
-        setOrderSuccess(true);
-        loadCart();
-        if (onOrderPlaced) onOrderPlaced();
-        setTimeout(() => setOrderSuccess(false), 3500);
-      })
-      .catch((err) => {
-        console.error("Checkout error:", err);
-        setPlacing(false);
-      });
+  const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const shipping = subtotal > 499 ? 0 : 49;
+  const total = subtotal + shipping;
+
+  const handlePlaceOrder = () => {
+    if (onOrderPlaced) onOrderPlaced();
+    navigate("/checkout", { state: { cartItems, subtotal, shipping, total } });
   };
 
-  // ✅ Render cold-start loading screen
-  if (loading) {
-    return (
-      <div className="page-loader">
-        <div className="spinner"></div>
-        {wakingUp ? (
-          <>
-            <p>☕ Server is waking up on Render free tier…</p>
-            <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>This takes ~15–30 seconds. Please wait.</p>
-          </>
-        ) : (
-          <p>Loading your cart…</p>
-        )}
-      </div>
-    );
-  }
-
-  if (showCheckout) {
-    return (
-      <Checkout
-        cart={cart}
-        onOrderPlaced={() => {
-          loadCart();
-          if (onOrderPlaced) onOrderPlaced();
-        }}
-      />
-    );
-  }
+  if (loading) return <div className="nm-loading">Loading cart...</div>;
 
   return (
-    <div className="cart-page">
-      <div className="page-header">
-        <h1 className="page-title">Your Cart</h1>
-        <span className="item-count">
-          {cart.items.length} item{cart.items.length !== 1 ? "s" : ""}
-        </span>
+    <div className="nm-cart-page">
+      <div className="nm-cart-header">
+        <h1>🛒 Your Cart</h1>
+        <span className="nm-cart-count">{cartItems.length} item{cartItems.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {orderSuccess && (
-        <div className="success-banner">🎉 Order placed successfully!</div>
-      )}
+      {error && <p className="nm-error">{error}</p>}
 
-      {cart.items.length === 0 ? (
-        <div className="empty-cart">
-          <div className="empty-cart-icon">🛒</div>
-          <h3>Your cart is empty</h3>
-          <p>Add some natural goodness to your cart!</p>
-          <a href="/" className="btn-primary">Browse Products</a>
+      {cartItems.length === 0 ? (
+        <div className="nm-empty-cart">
+          <div className="nm-empty-icon">🌿</div>
+          <h2>Your cart is empty</h2>
+          <p>Explore our natural products and add something you love!</p>
+          <button className="nm-btn-primary" onClick={() => navigate("/")}>Shop Now</button>
         </div>
       ) : (
-        <div className="cart-layout">
-          <div className="cart-items">
-            {cart.items.map((item) => (
-              <div className="cart-item" key={item.id}>
-                <div className="cart-item-img">
-                  <img src={`${API_URL}${item.image}`} alt={item.name}/>
+        <div className="nm-cart-layout">
+          <div className="nm-cart-items">
+            {cartItems.map((item) => (
+              <div className="nm-cart-card" key={item.id}>
+                {/* <img
+                  src={item.image ? `${config.API_URL}/images/${item.image}` : "/placeholder.png"}
+                  alt={item.name}
+                  className="nm-cart-img"
+                /> */}
+                <img
+                  src={getImageUrl(item.image)}
+                  alt={item.name}
+                  className="nm-cart-img"
+                  loading="lazy"
+                />
+                <div className="nm-cart-info">
+                  <h3>{item.name}</h3>
+                  <p className="nm-cart-price">₹{item.price.toFixed(2)}</p>
                 </div>
-                <div className="cart-item-info">
-                  <h3 className="cart-item-name">{item.name}</h3>
-                  <p className="cart-item-price">₹{item.price} each</p>
-                  <div className="qty-control">
-                    <button className="qty-btn" onClick={() => decrease(item.id)}>−</button>
-                    <span className="qty-value">{item.quantity}</span>
-                    <button className="qty-btn" onClick={() => increase(item.id)}>+</button>
+                <div className="nm-cart-actions">
+                  <div className="nm-qty-control">
+                    <button onClick={() => updateQty(item.id, item.quantity - 1)}>−</button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
                   </div>
-                </div>
-                <div className="cart-item-right">
-                  <p className="cart-item-subtotal">₹{item.subtotal}</p>
-                  <button className="btn-remove" onClick={() => removeItem(item.id)}>Remove</button>
+                  <p className="nm-item-total">₹{(item.price * item.quantity).toFixed(2)}</p>
+                  <button className="nm-remove-btn" onClick={() => removeItem(item.id)}>🗑</button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="cart-summary">
-            <h2 className="summary-title">Order Summary</h2>
-            <div className="summary-row">
-              <span>Subtotal</span>
-              <span>₹{cart.total}</span>
+          <div className="nm-cart-summary">
+            <h2>Order Summary</h2>
+            <div className="nm-summary-row">
+              <span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span>
             </div>
-            <div className="summary-row">
-              <span>Delivery</span>
-              <span className="free-tag">Free</span>
+            <div className="nm-summary-row">
+              <span>Shipping</span>
+              <span>{shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}</span>
             </div>
-            <div className="summary-divider"></div>
-            <div className="summary-row summary-total">
-              <span>Total</span>
-              <span>₹{cart.total}</span>
+            {shipping > 0 && (
+              <p className="nm-free-ship-note">Add ₹{(499 - subtotal).toFixed(2)} more for free shipping</p>
+            )}
+            <div className="nm-summary-divider" />
+            <div className="nm-summary-row nm-summary-total">
+              <span>Total</span><span>₹{total.toFixed(2)}</span>
             </div>
-            <button
-              className={`btn-checkout ${placing ? "btn-loading" : ""}`}
-              onClick={checkout}
-              disabled={placing}
-            >
-              {placing ? "Placing Order…" : "Place Order →"}
+            <button className="nm-place-order-btn" onClick={handlePlaceOrder}>
+              Place Order →
             </button>
-            <p className="secure-note">🔒 Safe & secure checkout</p>
+            <p className="nm-secure-note">🔒 Secure Checkout</p>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-export default Cart;

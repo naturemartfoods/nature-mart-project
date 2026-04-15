@@ -30,51 +30,6 @@ def add_to_cart():
     return jsonify({"message": "Added to cart"})
 
 
-@cart_bp.route('/cart/checkout', methods=['POST'])
-@token_required
-def checkout():
-    user_id = request.user_id
-    data    = request.json or {}
-
-    name           = data.get("name", "")
-    phone          = data.get("phone", "")
-    address        = data.get("address", "")
-    payment_method = data.get("payment_method", "cod")
-
-    conn = connect_db()
-    cur  = conn.cursor()
-
-    cur.execute("""
-        SELECT products.id, products.price, cart.quantity
-        FROM cart
-        JOIN products ON cart.product_id = products.id
-        WHERE cart.user_id = %s
-    """, (user_id,))
-    items = cur.fetchall()
-
-    if not items:
-        conn.close()
-        return jsonify({"message": "Cart is empty"}), 400
-
-    total_amount = 0
-    for product_id, price, quantity in items:
-        total = price * quantity
-        total_amount += total
-        cur.execute("""
-            INSERT INTO orders
-              (user_id, product_id, quantity, price, total,
-               name, phone, address, payment_method, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'placed')
-        """, (user_id, product_id, quantity, price, total,
-              name, phone, address, payment_method))
-
-    cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Order placed successfully", "total": total_amount})
-
-
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
@@ -82,8 +37,16 @@ def get_cart():
     conn    = connect_db()
     cur     = conn.cursor()
 
+    # FIX: select product_id explicitly as both "id" and "product_id"
+    # so frontend item.id works for increase/decrease calls
     cur.execute("""
-        SELECT products.id, products.name, products.price, products.image, cart.quantity
+        SELECT
+            products.id        AS id,
+            products.name      AS name,
+            products.price     AS price,
+            products.image     AS image,
+            cart.quantity      AS quantity,
+            products.id        AS product_id
         FROM cart
         JOIN products ON cart.product_id = products.id
         WHERE cart.user_id = %s
@@ -98,12 +61,13 @@ def get_cart():
         subtotal = row[2] * row[4]
         total   += subtotal
         cart_items.append({
-            "id":       row[0],
-            "name":     row[1],
-            "price":    row[2],
-            "image":    row[3],
-            "quantity": row[4],
-            "subtotal": subtotal
+            "id":         row[0],   # used by frontend for increase/decrease/remove
+            "name":       row[1],
+            "price":      row[2],
+            "image":      row[3],
+            "quantity":   row[4],
+            "product_id": row[5],   # kept for backward compat
+            "subtotal":   subtotal,
         })
 
     return jsonify({"items": cart_items, "total": total})
@@ -155,8 +119,15 @@ def remove_item(id):
 @token_required
 def checkout():
     user_id = request.user_id
-    conn    = connect_db()
-    cur     = conn.cursor()
+    data    = request.json or {}
+
+    name           = data.get("name", "")
+    phone          = data.get("phone", "")
+    address        = data.get("address", "")
+    payment_method = data.get("payment_method", "cod")
+
+    conn = connect_db()
+    cur  = conn.cursor()
 
     cur.execute("""
         SELECT products.id, products.price, cart.quantity
@@ -168,20 +139,22 @@ def checkout():
 
     if not items:
         conn.close()
-        return jsonify({"message": "Cart is empty", "total": 0})
+        return jsonify({"message": "Cart is empty"}), 400
 
     total_amount = 0
-    for item in items:
-        product_id, price, quantity = item
+    for product_id, price, quantity in items:
         total = price * quantity
         total_amount += total
         cur.execute("""
-            INSERT INTO orders (user_id, product_id, quantity, price, total)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (user_id, product_id, quantity, price, total))
+            INSERT INTO orders
+              (user_id, product_id, quantity, price, total,
+               name, phone, address, payment_method, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'placed')
+        """, (user_id, product_id, quantity, price, total,
+              name, phone, address, payment_method))
 
-    cur.execute("DELETE FROM cart WHERE user_id=%s", (user_id,))
+    cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Order placed successfully 🎉", "total": total_amount})
+    return jsonify({"message": "Order placed successfully", "total": total_amount})

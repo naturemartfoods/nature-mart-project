@@ -1,19 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-const API_URL = "https://nature-mart-project.onrender.com";
+import { useAuth } from "./AuthContext";
+import config from "./config";
 
 function Orders() {
+  const { authFetch } = useAuth();              // ✅ use authFetch instead of manual token
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/orders`, {
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("nm_token")}`,
-        "Content-Type": "application/json",
-      },
-    })
+    authFetch(`${config.API_URL}/api/orders`)   // ✅ token auto-added
       .then((res) => res.json())
       .then((data) => {
         setOrders(data.orders || []);

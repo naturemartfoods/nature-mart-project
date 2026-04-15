@@ -1,6 +1,5 @@
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -53,20 +52,36 @@ def create_tables():
     )
     """)
 
-    # ORDERS
+    # ORDERS — includes delivery + payment fields used by checkout
     cur.execute("""
     CREATE TABLE IF NOT EXISTS orders (
-        id         SERIAL PRIMARY KEY,
-        user_id    INTEGER NOT NULL DEFAULT 1,
-        product_id INTEGER,
-        quantity   INTEGER,
-        price      REAL,
-        total      REAL,
-        status     TEXT DEFAULT 'delivered',
-        created_at TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS'),
+        id             SERIAL PRIMARY KEY,
+        user_id        INTEGER NOT NULL DEFAULT 1,
+        product_id     INTEGER,
+        quantity       INTEGER,
+        price          REAL,
+        total          REAL,
+        name           TEXT,
+        phone          TEXT,
+        address        TEXT,
+        payment_method TEXT DEFAULT 'cod',
+        status         TEXT DEFAULT 'placed',
+        created_at     TEXT DEFAULT to_char(now(), 'YYYY-MM-DD HH24:MI:SS'),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
+
+    # Add missing columns to orders if table already exists (safe migration)
+    for col, definition in [
+        ("name",           "TEXT"),
+        ("phone",          "TEXT"),
+        ("address",        "TEXT"),
+        ("payment_method", "TEXT DEFAULT 'cod'"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col} {definition}")
+        except Exception:
+            conn.rollback()
 
     # Default admin account
     cur.execute("SELECT id FROM users WHERE role='admin' LIMIT 1")
