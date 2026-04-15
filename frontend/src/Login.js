@@ -20,18 +20,31 @@ function Login() {
     .then(data => {
     console.log("LOGIN RESPONSE:", data);
 
-    if (data.token) {
-        login(data.user || data, data.token);  // ✅ SAVE TOKEN + USER
+    // if (data.token) {
+    //     login(data.user || data, data.token);  // ✅ SAVE TOKEN + USER
 
-        if (data.role === "admin") {
+    //     if (data.role === "admin") {
+    //       alert("Admin Login Successful");
+    //       navigate("/admin");
+    //     } else {
+    //       alert("User Login Successful");
+    //       navigate("/");
+    //     }
+    //   } else {
+    //     alert("Login failed");
+    //   }
+    if (data.token) {
+        const userData = data.user || data;
+
+        login(userData, data.token);   // ✅ store user + token
+
+        if (userData.role === "admin") {
           alert("Admin Login Successful");
           navigate("/admin");
         } else {
           alert("User Login Successful");
           navigate("/");
         }
-      } else {
-        alert("Login failed");
       }
     });
   };
