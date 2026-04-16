@@ -5,39 +5,90 @@ import config from "../config";
 import "./Checkout.css";
 
 const STEPS = ["Delivery", "Payment", "Confirm"];
+const STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa",
+  "Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala",
+  "Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland",
+  "Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura",
+  "Uttar Pradesh","Uttarakhand","West Bengal","Delhi","Jammu & Kashmir","Ladakh"
+];
 
 export default function Checkout() {
-  const { user, authFetch } = useAuth();       // ✅ authFetch instead of user.token
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { user, authFetch } = useAuth();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const { cartItems = [], subtotal = 0, shipping = 0, total = 0 } = location.state || {};
 
-  const [step, setStep] = useState(0);
-  const [address, setAddress] = useState({
+  const [step, setStep]           = useState(0);
+  const [savedAddress, setSavedAddress] = useState(null);  // ✅ from profile
+  const [useSaved, setUseSaved]   = useState(false);       // ✅ toggle
+  const [address, setAddress]     = useState({
     full_name: "", phone: "", address_line: "", city: "", state: "", pincode: "",
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors]       = useState({});
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [upiId, setUpiId] = useState("");
-  const [card, setCard] = useState({ number: "", name: "", expiry: "", cvv: "" });
+  const [upiId, setUpiId]         = useState("");
+  const [card, setCard]           = useState({ number: "", name: "", expiry: "", cvv: "" });
   const [processing, setProcessing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [orderId, setOrderId] = useState(null);
+  const [orderId, setOrderId]     = useState(null);
   const [gatewayStep, setGatewayStep] = useState("form");
 
   useEffect(() => {
     if (!user) navigate("/login");
     if (!cartItems.length) navigate("/cart");
+    loadSavedAddress();
   }, []);
 
-  // ─── Validation ────────────────────────────────────────────────────────────
+  // ✅ Load saved address from profile
+  const loadSavedAddress = async () => {
+    try {
+      const res  = await authFetch(`${config.API_URL}/api/users/address`);
+      const data = await res.json();
+      if (data.address) {
+        setSavedAddress(data.address);
+        // Auto-fill with saved address
+        setAddress({
+          full_name:    data.address.full_name || user?.name || "",
+          phone:        data.address.phone || "",
+          address_line: data.address.address_line || "",
+          city:         data.address.city || "",
+          state:        data.address.state || "",
+          pincode:      data.address.pincode || "",
+        });
+        setUseSaved(true);
+      }
+    } catch {}
+  };
+
+  // ✅ Switch between saved and new address
+  const handleUseSaved = () => {
+    setUseSaved(true);
+    setAddress({
+      full_name:    savedAddress.full_name || user?.name || "",
+      phone:        savedAddress.phone || "",
+      address_line: savedAddress.address_line || "",
+      city:         savedAddress.city || "",
+      state:        savedAddress.state || "",
+      pincode:      savedAddress.pincode || "",
+    });
+    setErrors({});
+  };
+
+  const handleNewAddress = () => {
+    setUseSaved(false);
+    setAddress({ full_name: "", phone: "", address_line: "", city: "", state: "", pincode: "" });
+    setErrors({});
+  };
+
+  // ─── Validation ───────────────────────────────────────────────────────────
   const validateAddress = () => {
     const e = {};
     if (!address.full_name.trim()) e.full_name = "Full name is required";
     if (!/^[6-9]\d{9}$/.test(address.phone)) e.phone = "Enter valid 10-digit mobile number";
     if (!address.address_line.trim()) e.address_line = "Address is required";
     if (!address.city.trim()) e.city = "City is required";
-    if (!address.state.trim()) e.state = "State is required";
+    if (!address.state) e.state = "State is required";
     if (!/^\d{6}$/.test(address.pincode)) e.pincode = "Enter valid 6-digit PIN code";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -63,23 +114,26 @@ export default function Checkout() {
     return true;
   };
 
-  // ─── Place Order API ────────────────────────────────────────────────────────
+  // ─── Place Order ──────────────────────────────────────────────────────────
   const placeOrder = async () => {
     setProcessing(true);
     try {
-      const res = await authFetch(`${config.API_URL}/api/orders/place`, {  // ✅ fixed: authFetch + correct URL
+      const res = await authFetch(`${config.API_URL}/api/orders/place`, {
         method: "POST",
         body: JSON.stringify({
           delivery_address: address,
           payment_method: paymentMethod,
           items: cartItems,
-          subtotal,
-          shipping,
-          total,
+          subtotal, shipping, total,
         }),
       });
       const data = await res.json();
       if (res.ok) {
+        // ✅ Save address as default after first order
+        await authFetch(`${config.API_URL}/api/users/address`, {
+          method: "PUT",
+          body: JSON.stringify(address),
+        });
         setOrderId(data.order_id);
         setOrderPlaced(true);
         setGatewayStep("success");
@@ -93,32 +147,32 @@ export default function Checkout() {
     }
   };
 
-  // ─── Gateway Simulation ─────────────────────────────────────────────────────
-  const handleGatewayPayment = () => {
-    if (!validatePayment()) return;
-    setGatewayStep("processing");
-    setTimeout(() => { placeOrder(); }, 2500);
-  };
-
+  // ─── COD: place order directly ────────────────────────────────────────────
   const handleCOD = async () => {
-    setProcessing(true);
     await placeOrder();
   };
 
-  // ─── Formatters ────────────────────────────────────────────────────────────
-  const formatCard = (val) => val.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim().slice(0, 19);
+  // ─── UPI/Card: simulate gateway then place order ──────────────────────────
+  const handleGatewayPayment = () => {
+    if (!validatePayment()) return;
+    setGatewayStep("processing");
+    // Simulate payment processing (2.5s), then place order
+    setTimeout(() => { placeOrder(); }, 2500);
+  };
+
+  // ─── Formatters ───────────────────────────────────────────────────────────
+  const formatCard   = (val) => val.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim().slice(0, 19);
   const formatExpiry = (val) => {
     const v = val.replace(/\D/g, "").slice(0, 4);
     return v.length > 2 ? `${v.slice(0, 2)}/${v.slice(2)}` : v;
   };
 
-  // ─── Step Navigation ───────────────────────────────────────────────────────
   const handleNextStep = () => {
     if (step === 0 && validateAddress()) setStep(1);
     else if (step === 1 && validatePayment()) setStep(2);
   };
 
-  // ─── Order Success Screen ──────────────────────────────────────────────────
+  // ─── Screens ──────────────────────────────────────────────────────────────
   if (orderPlaced) {
     return (
       <div className="co-success-page">
@@ -141,7 +195,6 @@ export default function Checkout() {
     );
   }
 
-  // ─── Gateway Processing Screen ─────────────────────────────────────────────
   if (gatewayStep === "processing") {
     return (
       <div className="co-gateway-page">
@@ -188,13 +241,38 @@ export default function Checkout() {
       </div>
 
       <div className="co-layout">
-        {/* ── Left Panel ── */}
         <div className="co-main">
 
-          {/* STEP 0: Delivery Address */}
+          {/* STEP 0: Delivery */}
           {step === 0 && (
             <div className="co-section">
               <h2 className="co-section-title">📍 Delivery Address</h2>
+
+              {/* ✅ Saved address toggle */}
+              {savedAddress && (
+                <div className="co-address-toggle">
+                  <div
+                    className={`co-address-option ${useSaved ? "co-address-selected" : ""}`}
+                    onClick={handleUseSaved}
+                  >
+                    <div className="co-address-option-header">
+                      <span>🏠 Saved Address</span>
+                      <span>{useSaved ? "🔘" : "⚪"}</span>
+                    </div>
+                    <p>{savedAddress.address_line}, {savedAddress.city} - {savedAddress.pincode}</p>
+                  </div>
+                  <div
+                    className={`co-address-option ${!useSaved ? "co-address-selected" : ""}`}
+                    onClick={handleNewAddress}
+                  >
+                    <div className="co-address-option-header">
+                      <span>➕ Use Different Address</span>
+                      <span>{!useSaved ? "🔘" : "⚪"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="co-form-grid">
                 <div className="co-field co-full">
                   <label>Full Name *</label>
@@ -220,9 +298,7 @@ export default function Checkout() {
                   <label>State *</label>
                   <select value={address.state} onChange={e => setAddress({ ...address, state: e.target.value })}>
                     <option value="">Select State</option>
-                    {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi","Jammu & Kashmir","Ladakh"].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {STATES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {errors.state && <span className="co-err">{errors.state}</span>}
                 </div>
@@ -245,41 +321,21 @@ export default function Checkout() {
               {errors.payment && <p className="co-err">{errors.payment}</p>}
 
               <div className="co-payment-options">
-                <div
-                  className={`co-pay-card ${paymentMethod === "upi" ? "co-pay-selected" : ""}`}
-                  onClick={() => { setPaymentMethod("upi"); setUpiId(""); }}
-                >
-                  <div className="co-pay-icon co-phonepee">
-                    <svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="20" fill="#5f259f"/><text x="50%" y="55%" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" dy=".3em">Pe</text></svg>
-                  </div>
-                  <div className="co-pay-label">
-                    <strong>PhonePe / UPI</strong>
-                    <span>Pay using any UPI app</span>
-                  </div>
+                <div className={`co-pay-card ${paymentMethod === "upi" ? "co-pay-selected" : ""}`} onClick={() => { setPaymentMethod("upi"); setUpiId(""); }}>
+                  <div className="co-pay-icon"><svg viewBox="0 0 40 40" width="36" height="36"><circle cx="20" cy="20" r="20" fill="#5f259f"/><text x="50%" y="55%" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" dy=".3em">Pe</text></svg></div>
+                  <div className="co-pay-label"><strong>PhonePe / UPI</strong><span>Pay using any UPI app</span></div>
                   <div className="co-pay-radio">{paymentMethod === "upi" ? "🔘" : "⚪"}</div>
                 </div>
 
-                <div
-                  className={`co-pay-card ${paymentMethod === "card" ? "co-pay-selected" : ""}`}
-                  onClick={() => setPaymentMethod("card")}
-                >
-                  <div className="co-pay-icon co-card-icon">💳</div>
-                  <div className="co-pay-label">
-                    <strong>Credit / Debit Card</strong>
-                    <span>Visa, Mastercard, RuPay</span>
-                  </div>
+                <div className={`co-pay-card ${paymentMethod === "card" ? "co-pay-selected" : ""}`} onClick={() => setPaymentMethod("card")}>
+                  <div className="co-pay-icon">💳</div>
+                  <div className="co-pay-label"><strong>Credit / Debit Card</strong><span>Visa, Mastercard, RuPay</span></div>
                   <div className="co-pay-radio">{paymentMethod === "card" ? "🔘" : "⚪"}</div>
                 </div>
 
-                <div
-                  className={`co-pay-card ${paymentMethod === "cod" ? "co-pay-selected" : ""}`}
-                  onClick={() => setPaymentMethod("cod")}
-                >
-                  <div className="co-pay-icon co-cod-icon">💵</div>
-                  <div className="co-pay-label">
-                    <strong>Cash on Delivery</strong>
-                    <span>Pay when you receive</span>
-                  </div>
+                <div className={`co-pay-card ${paymentMethod === "cod" ? "co-pay-selected" : ""}`} onClick={() => setPaymentMethod("cod")}>
+                  <div className="co-pay-icon">💵</div>
+                  <div className="co-pay-label"><strong>Cash on Delivery</strong><span>Pay when you receive</span></div>
                   <div className="co-pay-radio">{paymentMethod === "cod" ? "🔘" : "⚪"}</div>
                 </div>
               </div>
@@ -287,12 +343,7 @@ export default function Checkout() {
               {paymentMethod === "upi" && (
                 <div className="co-payment-detail">
                   <h3>Enter UPI ID</h3>
-                  <input
-                    className="co-upi-input"
-                    value={upiId}
-                    onChange={e => setUpiId(e.target.value)}
-                    placeholder="yourname@upi / @okaxis / @ybl"
-                  />
+                  <input className="co-upi-input" value={upiId} onChange={e => setUpiId(e.target.value)} placeholder="yourname@upi / @okaxis / @ybl" />
                   {errors.upi && <span className="co-err">{errors.upi}</span>}
                   <p className="co-pay-hint">📲 After clicking Pay, confirm payment in your UPI app</p>
                 </div>
@@ -355,8 +406,8 @@ export default function Checkout() {
               <div className="co-review-block">
                 <h3>💳 Payment</h3>
                 <p>
-                  {paymentMethod === "cod" && "💵 Cash on Delivery"}
-                  {paymentMethod === "upi" && `📲 UPI — ${upiId}`}
+                  {paymentMethod === "cod"  && "💵 Cash on Delivery"}
+                  {paymentMethod === "upi"  && `📲 UPI — ${upiId}`}
                   {paymentMethod === "card" && `💳 Card ending in ****${card.number.slice(-4)}`}
                 </p>
                 <button className="co-edit-link" onClick={() => setStep(1)}>Edit</button>
@@ -374,11 +425,13 @@ export default function Checkout() {
 
               <div className="co-nav-btns">
                 <button className="co-btn-outline" onClick={() => setStep(1)}>← Back</button>
+                {/* ✅ COD: place order directly */}
                 {paymentMethod === "cod" ? (
                   <button className="co-btn-primary co-confirm-btn" onClick={handleCOD} disabled={processing}>
                     {processing ? "Placing Order..." : "✅ Confirm Order"}
                   </button>
                 ) : (
+                  /* ✅ UPI/Card: simulate payment then place order */
                   <button className="co-btn-pay co-confirm-btn" onClick={handleGatewayPayment} disabled={processing}>
                     {processing ? "Processing..." : `💳 Pay ₹${total.toFixed(2)}`}
                   </button>
@@ -389,7 +442,7 @@ export default function Checkout() {
           )}
         </div>
 
-        {/* ── Right Panel: Price Summary ── */}
+        {/* Right Panel */}
         <div className="co-sidebar">
           <h3>Price Summary</h3>
           {cartItems.map(item => (

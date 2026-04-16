@@ -13,6 +13,18 @@ def create_tables():
     conn = connect_db()
     cur  = conn.cursor()
 
+    for col, definition in [
+    ("phone",        "TEXT"),
+    ("address_line", "TEXT"),
+    ("city",         "TEXT"),
+    ("state",        "TEXT"),
+    ("pincode",      "TEXT"),
+    ]:
+            try:
+                cur.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
+            except Exception:
+                conn.rollback()
+
     # USERS
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
@@ -96,3 +108,5 @@ def create_tables():
     conn.commit()
     conn.close()
     print("✅ DB tables ready")
+
+    
