@@ -3,7 +3,6 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# FIX: load_dotenv() must run FIRST before any other imports that read env vars
 load_dotenv()
 
 from models import create_tables
@@ -15,19 +14,23 @@ from routes.auth     import auth_bp
 from routes.admin    import admin_bp
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}},
-     supports_credentials=True)
 
-# Create / migrate DB tables
+# ✅ Single CORS — handles OPTIONS preflight for ALL routes
+CORS(app,
+     origins=["http://localhost:3000", "http://localhost:5173", "*"],
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     supports_credentials=True
+)
+
 create_tables()
 
-# Register blueprints
 app.register_blueprint(auth_bp,     url_prefix="/api")
 app.register_blueprint(users_bp,    url_prefix="/api")
 app.register_blueprint(products_bp, url_prefix="/api")
 app.register_blueprint(cart_bp,     url_prefix="/api")
 app.register_blueprint(admin_bp,    url_prefix="/api")
-app.register_blueprint(orders_bp)
+app.register_blueprint(orders_bp,   url_prefix="/api")
 
 @app.route('/images/<path:filename>')
 def get_image(filename):

@@ -11,6 +11,9 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // ✅ Helper to safely get product id from item
+  const getProductId = (item) => item.product_id ?? item.id;
+
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -24,7 +27,6 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     try {
       const res = await authFetch(`${config.API_URL}/api/cart`);
 
-      // ✅ If token expired, authFetch already logged out → redirect to login
       if (res.status === 401) {
         navigate("/login");
         return;
@@ -36,7 +38,6 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
           const errData = await res.json();
           errMsg = errData.error || errMsg;
         } catch {}
-        console.error("Cart fetch failed:", res.status, errMsg);
         setError(`Failed to load cart: ${errMsg}`);
         setLoading(false);
         return;
@@ -56,10 +57,16 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   };
 
   const updateQty = async (productId, newQty) => {
+    // ✅ Guard against undefined
+    if (!productId) {
+      console.error("❌ productId is undefined!");
+      return;
+    }
+
     if (newQty < 1) return removeItem(productId);
 
     const currentItem = cartItems.find(
-      (i) => i.product_id === productId || i.id === productId
+      (i) => getProductId(i) === productId
     );
     if (!currentItem) return;
 
@@ -88,6 +95,12 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   };
 
   const removeItem = async (productId) => {
+    // ✅ Guard against undefined
+    if (!productId) {
+      console.error("❌ productId is undefined!");
+      return;
+    }
+
     try {
       const res = await authFetch(
         `${config.API_URL}/api/cart/remove/${productId}`,
@@ -151,42 +164,46 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
       ) : (
         <div className="nm-cart-layout">
           <div className="nm-cart-items">
-            {cartItems.map((item) => (
-              <div className="nm-cart-card" key={item.product_id || item.id}>
-                <img
-                  src={
-                    item.image
-                      ? item.image.startsWith("http")
-                        ? item.image
-                        : `${config.API_URL}${item.image}`
-                      : "/placeholder.png"
-                  }
-                  alt={item.name}
-                  className="nm-cart-img"
-                  onError={(e) => (e.target.src = "/placeholder.png")}
-                />
-                <div className="nm-cart-info">
-                  <h3>{item.name}</h3>
-                  <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
-                </div>
-                <div className="nm-cart-actions">
-                  <div className="nm-qty-control">
-                    <button onClick={() => updateQty(item.product_id, item.quantity - 1)}>−</button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => updateQty(item.product_id, item.quantity + 1)}>+</button>
+            {cartItems.map((item) => {
+              const pid = getProductId(item); // ✅ safe product id
+              return (
+                <div className="nm-cart-card" key={pid}>
+                  <img
+                    src={
+                      item.image
+                        ? item.image.startsWith("http")
+                          ? item.image
+                          : `${config.API_URL}${item.image}`
+                        : "/placeholder.png"
+                    }
+                    alt={item.name}
+                    className="nm-cart-img"
+                    onError={(e) => (e.target.src = "/placeholder.png")}
+                  />
+                  <div className="nm-cart-info">
+                    <h3>{item.name}</h3>
+                    <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
                   </div>
-                  <p className="nm-item-total">
-                    ₹{(item.price * item.quantity).toFixed(2)}
-                  </p>
-                  <button
-                    className="nm-remove-btn"
-                    onClick={() => removeItem(item.product_id)}
-                  >
-                    🗑
-                  </button>
+                  <div className="nm-cart-actions">
+                    <div className="nm-qty-control">
+                      {/* ✅ Use pid — never undefined */}
+                      <button onClick={() => updateQty(pid, item.quantity - 1)}>−</button>
+                      <span>{item.quantity}</span>
+                      <button onClick={() => updateQty(pid, item.quantity + 1)}>+</button>
+                    </div>
+                    <p className="nm-item-total">
+                      ₹{(item.price * item.quantity).toFixed(2)}
+                    </p>
+                    <button
+                      className="nm-remove-btn"
+                      onClick={() => removeItem(pid)}
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="nm-cart-summary">

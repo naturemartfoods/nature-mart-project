@@ -445,8 +445,8 @@ export default function Checkout() {
         {/* Right Panel */}
         <div className="co-sidebar">
           <h3>Price Summary</h3>
-          {cartItems.map(item => (
-            <div className="co-sidebar-item" key={item.product_id}>
+          {cartItems.map((item, index) => (
+              <div className="co-sidebar-item" key={item.product_id || item.id || index}>
               <span>{item.name} × {item.quantity}</span>
               <span>₹{(item.price * item.quantity).toFixed(2)}</span>
             </div>

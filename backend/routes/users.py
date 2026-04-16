@@ -1,30 +1,16 @@
 from flask import Blueprint, request, jsonify
 from routes.auth import token_required
 from models import connect_db
-from werkzeug.security import generate_password_hash, check_password_hash
 
 users_bp = Blueprint('users', __name__)
 
 
-@users_bp.route('/login', methods=['POST'])
-def login():
-    data     = request.json
-    email    = data.get("email")
-    password = data.get("password")
-
-    conn = connect_db()
-    cur  = conn.cursor()
-    cur.execute("SELECT id, name, role FROM users WHERE email=%s AND password=%s", (email, password))
-    user = cur.fetchone()
-    conn.close()
-
-    if user:
-        return jsonify({"id": user[0], "name": user[1], "role": user[2]})
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+# ✅ Handle OPTIONS preflight for /users/address
+@users_bp.route('/users/address', methods=['OPTIONS'])
+def address_options():
+    return '', 204
 
 
-# ✅ NEW: Get saved address
 @users_bp.route('/users/address', methods=['GET'])
 @token_required
 def get_address():
@@ -38,11 +24,7 @@ def get_address():
     row = cur.fetchone()
     conn.close()
 
-    if not row:
-        return jsonify({"address": None})
-
-    # Only return address if at least address_line is saved
-    if not row[2]:
+    if not row or not row[2]:
         return jsonify({"address": None})
 
     return jsonify({
@@ -57,7 +39,6 @@ def get_address():
     })
 
 
-# ✅ NEW: Save default address
 @users_bp.route('/users/address', methods=['PUT'])
 @token_required
 def save_address():
