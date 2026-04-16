@@ -12,10 +12,20 @@ def add_to_cart():
     product_id = data.get("product_id")
     user_id    = request.user_id
 
+    if not product_id:
+        return jsonify({"error": "product_id is required"}), 400
+
     conn = connect_db()
     cur  = conn.cursor()
 
-    cur.execute("SELECT * FROM cart WHERE product_id=%s AND user_id=%s", (product_id, user_id))
+    # ✅ Check product exists
+    cur.execute("SELECT id, stock FROM products WHERE id=%s AND is_active=1", (product_id,))
+    product = cur.fetchone()
+    if not product:
+        conn.close()
+        return jsonify({"error": "Product not found"}), 404
+
+    cur.execute("SELECT id, quantity FROM cart WHERE product_id=%s AND user_id=%s", (product_id, user_id))
     item = cur.fetchone()
 
     if item:
@@ -27,25 +37,24 @@ def add_to_cart():
 
     conn.commit()
     conn.close()
-    return jsonify({"message": "Added to cart"})
+    return jsonify({"message": "Added to cart"}), 200
 
 
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
     user_id  = request.user_id
-    host_url = request.host_url.rstrip("/")  # ✅ e.g. https://nature-mart-project.onrender.com
+    host_url = request.host_url.rstrip("/")
     conn     = connect_db()
     cur      = conn.cursor()
 
     cur.execute("""
         SELECT
-            products.id        AS id,
+            products.id        AS product_id,
             products.name      AS name,
             products.price     AS price,
             products.image     AS image,
-            cart.quantity      AS quantity,
-            products.id        AS product_id
+            cart.quantity      AS quantity
         FROM cart
         JOIN products ON cart.product_id = products.id
         WHERE cart.user_id = %s
@@ -58,11 +67,9 @@ def get_cart():
     total = 0
     for row in rows:
         raw_image = row[3] or ""
-        # ✅ FIXED: if image is already a full URL, use as-is
-        # if it's a path like /images/apple.jpg, prepend host_url
         if raw_image.startswith("http"):
             image_url = raw_image
-        elif raw_image:
+        elif raw_image.strip():
             image_url = host_url + raw_image
         else:
             image_url = ""
@@ -70,16 +77,16 @@ def get_cart():
         subtotal = row[2] * row[4]
         total   += subtotal
         cart_items.append({
-            "id":         row[0],
+            "id":         row[0],   # same as product_id for compatibility
+            "product_id": row[0],
             "name":       row[1],
             "price":      row[2],
-            "image":      image_url,   # ✅ always a full URL now
+            "image":      image_url,
             "quantity":   row[4],
-            "product_id": row[5],
             "subtotal":   subtotal,
         })
 
-    return jsonify({"items": cart_items, "total": total})
+    return jsonify({"items": cart_items, "total": total}), 200
 
 
 @cart_bp.route('/cart/increase/<int:id>', methods=['PUT'])
@@ -91,7 +98,7 @@ def increase_quantity(id):
                 (id, request.user_id))
     conn.commit()
     conn.close()
-    return jsonify({"message": "Quantity increased"})
+    return jsonify({"message": "Quantity increased"}), 200
 
 
 @cart_bp.route('/cart/decrease/<int:id>', methods=['PUT'])
@@ -110,7 +117,7 @@ def decrease_quantity(id):
                     (id, request.user_id))
     conn.commit()
     conn.close()
-    return jsonify({"message": "Quantity decreased"})
+    return jsonify({"message": "Quantity updated"}), 200
 
 
 @cart_bp.route('/cart/remove/<int:id>', methods=['DELETE'])
@@ -121,7 +128,19 @@ def remove_item(id):
     cur.execute("DELETE FROM cart WHERE product_id=%s AND user_id=%s", (id, request.user_id))
     conn.commit()
     conn.close()
-    return jsonify({"message": "Item removed"})
+    return jsonify({"message": "Item removed"}), 200
+
+
+# ✅ NEW: Clear entire cart (called after order placed)
+@cart_bp.route('/cart/clear', methods=['DELETE'])
+@token_required
+def clear_cart():
+    conn = connect_db()
+    cur  = conn.cursor()
+    cur.execute("DELETE FROM cart WHERE user_id = %s", (request.user_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Cart cleared"}), 200
 
 
 @cart_bp.route('/cart/checkout', methods=['POST'])
@@ -166,4 +185,4 @@ def checkout():
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Order placed successfully", "total": total_amount})
+    return jsonify({"message": "Order placed successfully", "total": total_amount}), 200

@@ -12,17 +12,40 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) { navigate("/login"); return; }
+    if (!user) {
+      navigate("/login");
+      return;
+    }
     fetchCart();
   }, [user]);
 
   const fetchCart = async () => {
+    setError("");
     try {
       const res = await authFetch(`${config.API_URL}/api/cart`);
+
+      // ✅ FIX 1: Check response status
+      if (!res.ok) {
+        let errMsg = `Error ${res.status}`;
+        try {
+          const errData = await res.json();
+          errMsg = errData.error || errMsg;
+        } catch {}
+        console.error("Cart fetch failed:", res.status, errMsg);
+        setError(`Failed to load cart: ${errMsg}`);
+        setLoading(false);
+        return;
+      }
+
       const data = await res.json();
-      setCartItems(data.items || []);
-    } catch {
-      setError("Failed to load cart.");
+      console.log("✅ Cart data received:", data); // debug — remove after fix
+
+      // ✅ FIX 2: Handle both possible response shapes
+      const items = data.items || data || [];
+      setCartItems(Array.isArray(items) ? items : []);
+    } catch (err) {
+      console.error("Cart fetch exception:", err);
+      setError("Failed to load cart. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -31,25 +54,44 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   const updateQty = async (productId, newQty) => {
     if (newQty < 1) return removeItem(productId);
 
-    const currentItem = cartItems.find((i) => i.id === productId);
+    const currentItem = cartItems.find(
+      (i) => i.product_id === productId || i.id === productId
+    );
     if (!currentItem) return;
 
     const isIncreasing = newQty > currentItem.quantity;
     const endpoint = isIncreasing
       ? `${config.API_URL}/api/cart/increase/${productId}`
       : `${config.API_URL}/api/cart/decrease/${productId}`;
-    await authFetch(endpoint, { method: "PUT" });
 
-    await fetchCart();
-    if (updateCartCount) updateCartCount();
+    try {
+      const res = await authFetch(endpoint, { method: "PUT" });
+      if (!res.ok) {
+        console.error("Update qty failed:", res.status);
+        return;
+      }
+      await fetchCart();
+      if (updateCartCount) updateCartCount();
+    } catch (err) {
+      console.error("Update qty error:", err);
+    }
   };
 
   const removeItem = async (productId) => {
-    await authFetch(`${config.API_URL}/api/cart/remove/${productId}`, {
-      method: "DELETE",
-    });
-    await fetchCart();
-    if (updateCartCount) updateCartCount();
+    try {
+      const res = await authFetch(
+        `${config.API_URL}/api/cart/remove/${productId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        console.error("Remove item failed:", res.status);
+        return;
+      }
+      await fetchCart();
+      if (updateCartCount) updateCartCount();
+    } catch (err) {
+      console.error("Remove item error:", err);
+    }
   };
 
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -72,9 +114,19 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
         </span>
       </div>
 
-      {error && <p className="nm-error">{error}</p>}
+      {error && (
+        <div className="nm-error" style={{ padding: "12px", marginBottom: "16px" }}>
+          ⚠️ {error}
+          <button
+            onClick={fetchCart}
+            style={{ marginLeft: "12px", cursor: "pointer" }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-      {cartItems.length === 0 ? (
+      {cartItems.length === 0 && !error ? (
         <div className="nm-empty-cart">
           <div className="nm-empty-icon">🌿</div>
           <h2>Your cart is empty</h2>
@@ -87,8 +139,8 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
         <div className="nm-cart-layout">
           <div className="nm-cart-items">
             {cartItems.map((item) => (
-              <div className="nm-cart-card" key={item.id}>
-                {/* ✅ FIXED: item.image already contains full URL from backend */}
+              // ✅ FIX 3: Use product_id as key (more reliable)
+              <div className="nm-cart-card" key={item.product_id || item.id}>
                 <img
                   src={
                     item.image
@@ -103,16 +155,24 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
                 />
                 <div className="nm-cart-info">
                   <h3>{item.name}</h3>
-                  <p className="nm-cart-price">₹{item.price.toFixed(2)}</p>
+                  <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
                 </div>
                 <div className="nm-cart-actions">
                   <div className="nm-qty-control">
-                    <button onClick={() => updateQty(item.id, item.quantity - 1)}>−</button>
+                    {/* ✅ FIX 4: Always use product_id for API calls */}
+                    <button onClick={() => updateQty(item.product_id, item.quantity - 1)}>−</button>
                     <span>{item.quantity}</span>
-                    <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
+                    <button onClick={() => updateQty(item.product_id, item.quantity + 1)}>+</button>
                   </div>
-                  <p className="nm-item-total">₹{(item.price * item.quantity).toFixed(2)}</p>
-                  <button className="nm-remove-btn" onClick={() => removeItem(item.id)}>🗑</button>
+                  <p className="nm-item-total">
+                    ₹{(item.price * item.quantity).toFixed(2)}
+                  </p>
+                  <button
+                    className="nm-remove-btn"
+                    onClick={() => removeItem(item.product_id)}
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             ))}
@@ -121,12 +181,17 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
           <div className="nm-cart-summary">
             <h2>Order Summary</h2>
             <div className="nm-summary-row">
-              <span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span>
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="nm-summary-row">
               <span>Shipping</span>
               <span>
-                {shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}
+                {shipping === 0 ? (
+                  <span className="nm-free">FREE</span>
+                ) : (
+                  `₹${shipping}`
+                )}
               </span>
             </div>
             {shipping > 0 && (
@@ -136,7 +201,8 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
             )}
             <div className="nm-summary-divider" />
             <div className="nm-summary-row nm-summary-total">
-              <span>Total</span><span>₹{total.toFixed(2)}</span>
+              <span>Total</span>
+              <span>₹{total.toFixed(2)}</span>
             </div>
             <button className="nm-place-order-btn" onClick={handlePlaceOrder}>
               Place Order →

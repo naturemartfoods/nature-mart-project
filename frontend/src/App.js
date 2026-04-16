@@ -86,7 +86,6 @@ function ProductCard({ product, onAddToCart, added }) {
   return (
     <div className={`card ${added ? "card-added" : ""}`}>
       <div className="card-img-wrap">
-        {/* <img src={product.image} alt={product.name} /> */}
         <img
           src={
             product.image?.startsWith("http")
@@ -107,7 +106,10 @@ function ProductCard({ product, onAddToCart, added }) {
         <div className="card-footer">
           <span className="card-price">₹{product.price}</span>
           {user ? (
-            <button className={`btn-add ${added ? "btn-added" : ""}`} onClick={() => onAddToCart(product.id)}>
+            <button
+              className={`btn-add ${added ? "btn-added" : ""}`}
+              onClick={() => onAddToCart(product.id)}
+            >
               {added ? "✓ Added" : "+ Add to Cart"}
             </button>
           ) : (
@@ -135,7 +137,10 @@ function Home({ products, onAddToCart, addedIds }) {
         <h2 className="section-title">Our Products</h2>
         <div className="grid">
           {products.length === 0 ? (
-            <div className="empty-state"><div className="spinner"></div><p>Loading products…</p></div>
+            <div className="empty-state">
+              <div className="spinner"></div>
+              <p>Loading products…</p>
+            </div>
           ) : (
             products.map(product => (
               <ProductCard
@@ -155,35 +160,61 @@ function Home({ products, onAddToCart, addedIds }) {
 // ── App content ───────────────────────────────────────────────
 function AppContent() {
   const { user, authFetch } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [addedIds, setAddedIds] = useState([]);
+  const [products, setProducts]   = useState([]);
+  const [addedIds, setAddedIds]   = useState([]);
   const [cartCount, setCartCount] = useState(0);
 
-  const fetchCartCount = () => {
+  // ✅ FIX: fetchCartCount with proper error handling
+  const fetchCartCount = async () => {
     if (!user) { setCartCount(0); return; }
-    authFetch(`${API_URL}/api/cart`)
-      .then(r => r.json())
-      .then(d => setCartCount(d.items?.length || 0))
-      .catch(() => {});
+    try {
+      const res = await authFetch(`${API_URL}/api/cart`);
+      if (!res.ok) { console.error("Cart count fetch failed:", res.status); return; }
+      const data = await res.json();
+      setCartCount(data.items?.length || 0);
+    } catch (err) {
+      console.error("Cart count error:", err);
+    }
   };
 
-  const addToCart = (id) => {
-    authFetch(`${API_URL}/api/cart`, {
-      method: "POST",
-      body:   JSON.stringify({ product_id: id }),
-    }).then(() => {
+  // ✅ FIX: addToCart with full error handling
+  const addToCart = async (id) => {
+    try {
+      const res = await authFetch(`${API_URL}/api/cart`, {
+        method: "POST",
+        body: JSON.stringify({ product_id: id }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Add to cart failed:", res.status, err);
+        alert(err.error || "Failed to add to cart. Please try again.");
+        return;
+      }
+
+      // ✅ Success feedback
       setAddedIds(prev => [...prev, id]);
       fetchCartCount();
       setTimeout(() => setAddedIds(prev => prev.filter(i => i !== id)), 2000);
-    });
+    } catch (err) {
+      console.error("Add to cart exception:", err);
+      alert("Network error. Please check your connection.");
+    }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    // Load products
     fetch(`${API_URL}/api/products`)
       .then(r => r.json())
-      .then(setProducts);
+      .then(data => {
+        console.log("✅ Products loaded:", data.length); // debug
+        setProducts(data);
+      })
+      .catch(err => console.error("Products fetch error:", err));
+
+    // Load cart count
     fetchCartCount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   return (
@@ -197,18 +228,17 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
 
           {/* User protected */}
-          {/* <Route path="/cart"     element={<RequireAuth><Cart onOrderPlaced={fetchCartCount} /></RequireAuth>} /> */}
-            <Route
-              path="/cart"
-              element={
-                <RequireAuth>
-                  <Cart updateCartCount={fetchCartCount} />
-                </RequireAuth>
-              }
-            />
+          <Route
+            path="/cart"
+            element={
+              <RequireAuth>
+                {/* ✅ FIX: Pass both props */}
+                <Cart updateCartCount={fetchCartCount} onOrderPlaced={fetchCartCount} />
+              </RequireAuth>
+            }
+          />
           <Route path="/orders"   element={<RequireAuth><Orders /></RequireAuth>} />
           <Route path="/profile"  element={<RequireAuth><Profile /></RequireAuth>} />
-          {/* FIX: replaced undefined PrivateRoute with RequireAuth */}
           <Route path="/checkout" element={<RequireAuth><Checkout onOrderPlaced={fetchCartCount} /></RequireAuth>} />
 
           {/* Admin protected */}
