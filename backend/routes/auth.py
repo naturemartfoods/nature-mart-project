@@ -5,10 +5,15 @@ from models import connect_db
 import jwt
 import datetime
 import os
+import jwt
+from functools import wraps
+from flask import request, jsonify
+from config import SECRET_KEY
 
 auth_bp = Blueprint('auth', __name__)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "nature-mart-secret-key-change-in-production")
+
 
 
 # ─── JWT Helpers ────────────────────────────────────────────
@@ -29,20 +34,26 @@ def decode_token(token):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        token = None
+
+        if "Authorization" in request.headers:
+            parts = request.headers["Authorization"].split()
+            if len(parts) == 2 and parts[0] == "Bearer":
+                token = parts[1]
+
         if not token:
             return jsonify({"error": "Token missing"}), 401
+
         try:
-            data = decode_token(token)
-            request.user_id   = data["user_id"]
-            request.user_role = data["role"]
+            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            request.user_id = data["user_id"]
         except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expired"}), 401
-        except Exception:
+            return jsonify({"error": "Token expired"}), 401  # ✅ Key fix
+        except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token"}), 401
+
         return f(*args, **kwargs)
     return decorated
-
 
 def admin_required(f):
     @wraps(f)

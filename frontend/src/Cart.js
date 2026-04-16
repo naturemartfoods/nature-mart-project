@@ -24,7 +24,12 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     try {
       const res = await authFetch(`${config.API_URL}/api/cart`);
 
-      // ✅ FIX 1: Check response status
+      // ✅ If token expired, authFetch already logged out → redirect to login
+      if (res.status === 401) {
+        navigate("/login");
+        return;
+      }
+
       if (!res.ok) {
         let errMsg = `Error ${res.status}`;
         try {
@@ -38,9 +43,8 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
       }
 
       const data = await res.json();
-      console.log("✅ Cart data received:", data); // debug — remove after fix
+      console.log("✅ Cart data received:", data);
 
-      // ✅ FIX 2: Handle both possible response shapes
       const items = data.items || data || [];
       setCartItems(Array.isArray(items) ? items : []);
     } catch (err) {
@@ -66,6 +70,12 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
 
     try {
       const res = await authFetch(endpoint, { method: "PUT" });
+
+      if (res.status === 401) {
+        navigate("/login");
+        return;
+      }
+
       if (!res.ok) {
         console.error("Update qty failed:", res.status);
         return;
@@ -83,6 +93,12 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
         `${config.API_URL}/api/cart/remove/${productId}`,
         { method: "DELETE" }
       );
+
+      if (res.status === 401) {
+        navigate("/login");
+        return;
+      }
+
       if (!res.ok) {
         console.error("Remove item failed:", res.status);
         return;
@@ -117,10 +133,7 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
       {error && (
         <div className="nm-error" style={{ padding: "12px", marginBottom: "16px" }}>
           ⚠️ {error}
-          <button
-            onClick={fetchCart}
-            style={{ marginLeft: "12px", cursor: "pointer" }}
-          >
+          <button onClick={fetchCart} style={{ marginLeft: "12px", cursor: "pointer" }}>
             Retry
           </button>
         </div>
@@ -139,7 +152,6 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
         <div className="nm-cart-layout">
           <div className="nm-cart-items">
             {cartItems.map((item) => (
-              // ✅ FIX 3: Use product_id as key (more reliable)
               <div className="nm-cart-card" key={item.product_id || item.id}>
                 <img
                   src={
@@ -159,7 +171,6 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
                 </div>
                 <div className="nm-cart-actions">
                   <div className="nm-qty-control">
-                    {/* ✅ FIX 4: Always use product_id for API calls */}
                     <button onClick={() => updateQty(item.product_id, item.quantity - 1)}>−</button>
                     <span>{item.quantity}</span>
                     <button onClick={() => updateQty(item.product_id, item.quantity + 1)}>+</button>

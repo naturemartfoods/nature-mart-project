@@ -3,12 +3,12 @@ import { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]   = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("nm_user");
-    const token  = localStorage.getItem("nm_token");
+    const token = localStorage.getItem("nm_token");
     if (stored && token) {
       setUser(JSON.parse(stored));
     }
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
 
   const login = (userData, token) => {
     localStorage.setItem("nm_token", token);
-    localStorage.setItem("nm_user",  JSON.stringify(userData));
+    localStorage.setItem("nm_user", JSON.stringify(userData));
     setUser(userData);
   };
 
@@ -29,9 +29,10 @@ export function AuthProvider({ children }) {
 
   const getToken = () => localStorage.getItem("nm_token");
 
-  const authFetch = (url, options = {}) => {
+  // ✅ UPDATED: auto-logout on 401
+  const authFetch = async (url, options = {}) => {
     const token = getToken();
-    return fetch(url, {
+    const res = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -39,6 +40,13 @@ export function AuthProvider({ children }) {
         ...(options.headers || {}),
       },
     });
+
+    // ✅ If token expired or invalid, auto logout
+    if (res.status === 401) {
+      logout();
+    }
+
+    return res;
   };
 
   return (
