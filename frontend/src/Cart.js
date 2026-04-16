@@ -5,7 +5,7 @@ import config from "./config";
 import "./App.css";
 
 export default function Cart({ onOrderPlaced, updateCartCount }) {
-  const { user, authFetch } = useAuth();       // ✅ authFetch handles token automatically
+  const { user, authFetch } = useAuth();
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,22 +18,14 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
 
   const fetchCart = async () => {
     try {
-      const res = await authFetch(`${config.API_URL}/api/cart`);  // ✅ fixed URL + token
+      const res = await authFetch(`${config.API_URL}/api/cart`);
       const data = await res.json();
       setCartItems(data.items || []);
-     
     } catch {
       setError("Failed to load cart.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const getImageUrl = (img) => {
-    if (!img) return "/placeholder.png";
-    return img.startsWith("http")
-      ? img
-      : `${config.API_URL}/images/${img}`;
   };
 
   const updateQty = async (productId, newQty) => {
@@ -46,19 +38,18 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     const endpoint = isIncreasing
       ? `${config.API_URL}/api/cart/increase/${productId}`
       : `${config.API_URL}/api/cart/decrease/${productId}`;
-      await authFetch(endpoint, { method: "PUT" });
+    await authFetch(endpoint, { method: "PUT" });
 
-      await fetchCart();
-      if (updateCartCount) updateCartCount(); 
+    await fetchCart();
+    if (updateCartCount) updateCartCount();
   };
 
   const removeItem = async (productId) => {
     await authFetch(`${config.API_URL}/api/cart/remove/${productId}`, {
       method: "DELETE",
     });
-
     await fetchCart();
-    if (updateCartCount) updateCartCount(); // ✅ OK here
+    if (updateCartCount) updateCartCount();
   };
 
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -76,7 +67,9 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     <div className="nm-cart-page">
       <div className="nm-cart-header">
         <h1>🛒 Your Cart</h1>
-        <span className="nm-cart-count">{cartItems.length} item{cartItems.length !== 1 ? "s" : ""}</span>
+        <span className="nm-cart-count">
+          {cartItems.length} item{cartItems.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {error && <p className="nm-error">{error}</p>}
@@ -86,23 +79,27 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
           <div className="nm-empty-icon">🌿</div>
           <h2>Your cart is empty</h2>
           <p>Explore our natural products and add something you love!</p>
-          <button className="nm-btn-primary" onClick={() => navigate("/")}>Shop Now</button>
+          <button className="nm-btn-primary" onClick={() => navigate("/")}>
+            Shop Now
+          </button>
         </div>
       ) : (
         <div className="nm-cart-layout">
           <div className="nm-cart-items">
             {cartItems.map((item) => (
               <div className="nm-cart-card" key={item.id}>
-                {/* <img
-                  src={item.image ? `${config.API_URL}/images/${item.image}` : "/placeholder.png"}
-                  alt={item.name}
-                  className="nm-cart-img"
-                /> */}
+                {/* ✅ FIXED: item.image already contains full URL from backend */}
                 <img
-                  src={getImageUrl(item.image)}
+                  src={
+                    item.image
+                      ? item.image.startsWith("http")
+                        ? item.image
+                        : `${config.API_URL}${item.image}`
+                      : "/placeholder.png"
+                  }
                   alt={item.name}
                   className="nm-cart-img"
-                  loading="lazy"
+                  onError={(e) => (e.target.src = "/placeholder.png")}
                 />
                 <div className="nm-cart-info">
                   <h3>{item.name}</h3>
@@ -128,10 +125,14 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
             </div>
             <div className="nm-summary-row">
               <span>Shipping</span>
-              <span>{shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}</span>
+              <span>
+                {shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}
+              </span>
             </div>
             {shipping > 0 && (
-              <p className="nm-free-ship-note">Add ₹{(499 - subtotal).toFixed(2)} more for free shipping</p>
+              <p className="nm-free-ship-note">
+                Add ₹{(499 - subtotal).toFixed(2)} more for free shipping
+              </p>
             )}
             <div className="nm-summary-divider" />
             <div className="nm-summary-row nm-summary-total">

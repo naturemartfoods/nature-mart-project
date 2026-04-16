@@ -33,12 +33,11 @@ def add_to_cart():
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
-    user_id = request.user_id
-    conn    = connect_db()
-    cur     = conn.cursor()
+    user_id  = request.user_id
+    host_url = request.host_url.rstrip("/")  # ✅ e.g. https://nature-mart-project.onrender.com
+    conn     = connect_db()
+    cur      = conn.cursor()
 
-    # FIX: select product_id explicitly as both "id" and "product_id"
-    # so frontend item.id works for increase/decrease calls
     cur.execute("""
         SELECT
             products.id        AS id,
@@ -58,15 +57,25 @@ def get_cart():
     cart_items = []
     total = 0
     for row in rows:
+        raw_image = row[3] or ""
+        # ✅ FIXED: if image is already a full URL, use as-is
+        # if it's a path like /images/apple.jpg, prepend host_url
+        if raw_image.startswith("http"):
+            image_url = raw_image
+        elif raw_image:
+            image_url = host_url + raw_image
+        else:
+            image_url = ""
+
         subtotal = row[2] * row[4]
         total   += subtotal
         cart_items.append({
-            "id":         row[0],   # used by frontend for increase/decrease/remove
+            "id":         row[0],
             "name":       row[1],
             "price":      row[2],
-            "image":      row[3],
+            "image":      image_url,   # ✅ always a full URL now
             "quantity":   row[4],
-            "product_id": row[5],   # kept for backward compat
+            "product_id": row[5],
             "subtotal":   subtotal,
         })
 
