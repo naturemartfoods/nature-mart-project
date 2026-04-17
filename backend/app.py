@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -15,16 +15,26 @@ from routes.admin    import admin_bp
 
 app = Flask(__name__)
 
-# ✅ Single CORS — handles OPTIONS preflight for ALL routes
+# ✅ UPDATED CORS (FIXED)
 CORS(app,
-     origins=["http://localhost:3000", "http://localhost:5173", "*"],
+     resources={r"/api/*": {"origins": "*"}},
      allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     supports_credentials=True
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
 
-create_tables()
+# ✅ OPTIONAL (extra safety for preflight)
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        return "", 200
 
+# DB init
+try:
+    create_tables()
+except Exception as e:
+    print("❌ DB Init Failed:", e)
+
+# Routes
 app.register_blueprint(auth_bp,     url_prefix="/api")
 app.register_blueprint(users_bp,    url_prefix="/api")
 app.register_blueprint(products_bp, url_prefix="/api")
