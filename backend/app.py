@@ -15,24 +15,25 @@ from routes.admin    import admin_bp
 
 app = Flask(__name__)
 
-# ✅ UPDATED CORS (FIXED)
 CORS(app,
      resources={r"/api/*": {"origins": "*"}},
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
 
-# ✅ OPTIONAL (extra safety for preflight)
 @app.before_request
 def handle_options():
     if request.method == "OPTIONS":
         return "", 200
 
-# DB init
+# ✅ REPLACE YOUR OLD try/except BLOCK WITH THIS ↓
 try:
+    if not os.environ.get("DATABASE_URL"):
+        raise ValueError("DATABASE_URL environment variable is not set!")
     create_tables()
 except Exception as e:
     print("❌ DB Init Failed:", e)
+# ↑ ENDS HERE
 
 # Routes
 app.register_blueprint(auth_bp,     url_prefix="/api")
