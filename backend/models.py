@@ -13,19 +13,7 @@ def create_tables():
     conn = connect_db()
     cur  = conn.cursor()
 
-    for col, definition in [
-    ("phone",        "TEXT"),
-    ("address_line", "TEXT"),
-    ("city",         "TEXT"),
-    ("state",        "TEXT"),
-    ("pincode",      "TEXT"),
-    ]:
-            try:
-                cur.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
-            except Exception:
-                conn.rollback()
-
-    # USERS
+    # ── USERS ─────────────────────────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id         SERIAL PRIMARY KEY,
@@ -38,7 +26,22 @@ def create_tables():
     )
     """)
 
-    # PRODUCTS
+    # Add address columns to users (safe migration)
+    for col, definition in [
+        ("phone",        "TEXT"),
+        ("address_line", "TEXT"),
+        ("city",         "TEXT"),
+        ("state",        "TEXT"),
+        ("pincode",      "TEXT"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} {definition}")
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"[users migration] {col}: {e}")
+
+    # ── PRODUCTS ──────────────────────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id          SERIAL PRIMARY KEY,
@@ -52,7 +55,7 @@ def create_tables():
     )
     """)
 
-    # CART
+    # ── CART ──────────────────────────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS cart (
         id         SERIAL PRIMARY KEY,
@@ -64,10 +67,13 @@ def create_tables():
     )
     """)
 
-    # ORDERS — includes delivery + payment fields used by checkout
+    # ── ORDERS ────────────────────────────────────────────────────────────────
+    # order_id is a human-readable group key like "NM-20250417-A1B2C3"
+    # Each row = one line item; multiple rows share the same order_id
     cur.execute("""
     CREATE TABLE IF NOT EXISTS orders (
         id             SERIAL PRIMARY KEY,
+        order_id       TEXT,
         user_id        INTEGER NOT NULL DEFAULT 1,
         product_id     INTEGER,
         quantity       INTEGER,
@@ -83,8 +89,9 @@ def create_tables():
     )
     """)
 
-    # Add missing columns to orders if table already exists (safe migration)
+    # Safe migration: add any missing columns to orders
     for col, definition in [
+        ("order_id",       "TEXT"),
         ("name",           "TEXT"),
         ("phone",          "TEXT"),
         ("address",        "TEXT"),
@@ -92,10 +99,20 @@ def create_tables():
     ]:
         try:
             cur.execute(f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col} {definition}")
-        except Exception:
+            conn.commit()
+        except Exception as e:
             conn.rollback()
+            print(f"[orders migration] {col}: {e}")
 
-    # Default admin account
+    # Index for fast order lookups by order_id
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders (order_id)")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[index migration] order_id index: {e}")
+
+    # ── Default admin account ─────────────────────────────────────────────────
     cur.execute("SELECT id FROM users WHERE role='admin' LIMIT 1")
     if not cur.fetchone():
         hashed = generate_password_hash("admin123")
@@ -108,23 +125,3 @@ def create_tables():
     conn.commit()
     conn.close()
     print("✅ DB tables ready")
-
-    for col, definition in [
-    ("order_id",       "TEXT"),          # ← group identifier like NM-20250417-A1B2C3
-    ("name",           "TEXT"),
-    ("phone",          "TEXT"),
-    ("address",        "TEXT"),
-    ("payment_method", "TEXT DEFAULT 'cod'"),
-    ]:
-        try:
-            cur.execute(f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col} {definition}")
-        except Exception:
-            conn.rollback()
-    
-    # ── Also add this index so order lookups by order_id are fast ─────────────────
-    try:
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders (order_id)")
-    except Exception:
-        conn.rollback()
-
-    
