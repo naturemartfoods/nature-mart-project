@@ -109,4 +109,22 @@ def create_tables():
     conn.close()
     print("✅ DB tables ready")
 
+    for col, definition in [
+    ("order_id",       "TEXT"),          # ← group identifier like NM-20250417-A1B2C3
+    ("name",           "TEXT"),
+    ("phone",          "TEXT"),
+    ("address",        "TEXT"),
+    ("payment_method", "TEXT DEFAULT 'cod'"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col} {definition}")
+        except Exception:
+            conn.rollback()
+    
+    # ── Also add this index so order lookups by order_id are fast ─────────────────
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders (order_id)")
+    except Exception:
+        conn.rollback()
+
     

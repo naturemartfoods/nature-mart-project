@@ -1,5 +1,3 @@
-
-
 from flask import Blueprint, request, jsonify
 from routes.auth import token_required
 from models import connect_db
@@ -25,42 +23,102 @@ def place_order():
     payment_method = data.get("payment_method", "cod")
     items = data.get("items", [])
 
+    # ── Validate inputs ───────────────────────────────────────────────────────
     if not items:
         return jsonify({"error": "No items in order"}), 400
 
+    if not delivery or not delivery.get("address_line"):
+        return jsonify({"error": "Delivery address is required"}), 400
+
+    if payment_method not in ("cod", "upi", "card"):
+        return jsonify({"error": "Invalid payment method"}), 400
+
+    # ── Flatten address for storage ───────────────────────────────────────────
+    delivery_name    = delivery.get("full_name", "")
+    delivery_phone   = delivery.get("phone", "")
+    delivery_address = (
+        f"{delivery.get('address_line', '')}, "
+        f"{delivery.get('city', '')}, "
+        f"{delivery.get('state', '')} - "
+        f"{delivery.get('pincode', '')}"
+    )
+
     conn = connect_db()
-    cur = conn.cursor()
+    cur  = conn.cursor()
 
     try:
         order_id = generate_order_id()
 
         subtotal = float(data.get("subtotal", 0))
         shipping = float(data.get("shipping", 0))
-        total = float(data.get("total", 0))
+        total    = float(data.get("total", 0))
 
-        # Insert main order (store delivery + payment info)
+        inserted = 0  # track how many items were actually inserted
+
         for item in items:
             product_id = item.get("product_id")
-            quantity = item.get("quantity", 1)
+            quantity   = int(item.get("quantity", 1))
 
-            cur.execute("SELECT price FROM products WHERE id=%s", (product_id,))
+            if not product_id or quantity < 1:
+                continue
+
+            # ── Fetch live price from DB (never trust client price) ───────────
+            cur.execute("SELECT price, stock FROM products WHERE id = %s AND is_active = 1", (product_id,))
             product = cur.fetchone()
 
             if not product:
-                continue
+                conn.rollback()
+                conn.close()
+                return jsonify({"error": f"Product {product_id} not found or unavailable"}), 400
 
-            price = product[0]
+            price = float(product[0])
+            stock = product[1]
+
+            if stock < quantity:
+                conn.rollback()
+                conn.close()
+                return jsonify({"error": f"Insufficient stock for product {product_id}"}), 400
+
             item_total = price * quantity
 
+            # ── Insert order row (with delivery + payment info) ───────────────
             cur.execute("""
                 INSERT INTO orders (
-                    user_id, product_id, quantity, price, total, status
+                    order_id, user_id, product_id, quantity,
+                    price, total,
+                    name, phone, address,
+                    payment_method, status
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (user_id, product_id, quantity, price, item_total, "placed"))
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                order_id,
+                user_id,
+                product_id,
+                quantity,
+                price,
+                item_total,
+                delivery_name,
+                delivery_phone,
+                delivery_address,
+                payment_method,
+                "placed",
+            ))
 
-        # Clear cart
-        cur.execute("DELETE FROM cart WHERE user_id=%s", (user_id,))
+            # ── Decrement stock ───────────────────────────────────────────────
+            cur.execute(
+                "UPDATE products SET stock = stock - %s WHERE id = %s",
+                (quantity, product_id)
+            )
+
+            inserted += 1
+
+        if inserted == 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"error": "No valid items could be processed"}), 400
+
+        # ── Clear user's cart ─────────────────────────────────────────────────
+        cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
 
         conn.commit()
         conn.close()
@@ -68,13 +126,16 @@ def place_order():
         return jsonify({
             "message": "Order placed successfully",
             "order_id": order_id,
-            "total": total
-        })
+            "total": total,
+            "payment_method": payment_method,
+            "items_count": inserted,
+        }), 201
 
     except Exception as e:
         conn.rollback()
         conn.close()
-        return jsonify({"error": str(e)}), 500
+        print(f"[place_order] Error: {e}")
+        return jsonify({"error": "Failed to place order. Please try again."}), 500
 
 
 @orders_bp.route("/orders", methods=["GET"])
@@ -83,28 +144,42 @@ def get_orders():
     user_id = request.user_id
 
     conn = connect_db()
-    cur = conn.cursor()
+    cur  = conn.cursor()
 
     cur.execute("""
-        SELECT id, product_id, quantity, price, total, status, created_at
+        SELECT order_id, product_id, quantity, price, total,
+               name, phone, address, payment_method, status, created_at
         FROM orders
-        WHERE user_id=%s
+        WHERE user_id = %s
         ORDER BY id DESC
     """, (user_id,))
 
     rows = cur.fetchall()
     conn.close()
 
-    orders = []
+    # Group rows by order_id so each order groups its items
+    from collections import defaultdict
+    grouped = defaultdict(lambda: {
+        "order_id": None, "items": [], "total": 0,
+        "name": "", "phone": "", "address": "",
+        "payment_method": "", "status": "", "created_at": ""
+    })
+
     for row in rows:
-        orders.append({
-            "order_id": row[0],
+        oid = row[0]
+        grouped[oid]["order_id"]       = oid
+        grouped[oid]["name"]           = row[5]
+        grouped[oid]["phone"]          = row[6]
+        grouped[oid]["address"]        = row[7]
+        grouped[oid]["payment_method"] = row[8]
+        grouped[oid]["status"]         = row[9]
+        grouped[oid]["created_at"]     = str(row[10])
+        grouped[oid]["total"]         += float(row[4] or 0)
+        grouped[oid]["items"].append({
             "product_id": row[1],
-            "quantity": row[2],
-            "price": row[3],
-            "total": row[4],
-            "status": row[5],
-            "created_at": row[6]
+            "quantity":   row[2],
+            "price":      float(row[3] or 0),
+            "item_total": float(row[4] or 0),
         })
 
-    return jsonify({"orders": orders})
+    return jsonify({"orders": list(grouped.values())})

@@ -19,58 +19,61 @@ export default function Checkout() {
   const location  = useLocation();
   const { cartItems = [], subtotal = 0, shipping = 0, total = 0 } = location.state || {};
 
-  const [step, setStep]           = useState(0);
-  const [savedAddress, setSavedAddress] = useState(null);  // ✅ from profile
-  const [useSaved, setUseSaved]   = useState(false);       // ✅ toggle
-  const [address, setAddress]     = useState({
+  const [step, setStep]                 = useState(0);
+  const [savedAddress, setSavedAddress] = useState(null);
+  const [useSaved, setUseSaved]         = useState(false);
+  const [address, setAddress]           = useState({
     full_name: "", phone: "", address_line: "", city: "", state: "", pincode: "",
   });
-  const [errors, setErrors]       = useState({});
+  const [errors, setErrors]         = useState({});
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [upiId, setUpiId]         = useState("");
-  const [card, setCard]           = useState({ number: "", name: "", expiry: "", cvv: "" });
+  const [upiId, setUpiId]           = useState("");
+  const [card, setCard]             = useState({ number: "", name: "", expiry: "", cvv: "" });
   const [processing, setProcessing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
-  const [orderId, setOrderId]     = useState(null);
+  const [orderId, setOrderId]       = useState(null);
   const [gatewayStep, setGatewayStep] = useState("form");
+  // ✅ NEW: user-facing error message
+  const [orderError, setOrderError] = useState("");
 
   useEffect(() => {
-    if (!user) navigate("/login");
-    if (!cartItems.length) navigate("/cart");
+    // ✅ FIX: check loading state before redirecting so auth has time to rehydrate
+    if (!user) { navigate("/login"); return; }
+    if (!cartItems.length) { navigate("/cart"); return; }
     loadSavedAddress();
-  }, []);
+  }, [user]);
 
-  // ✅ Load saved address from profile
   const loadSavedAddress = async () => {
     try {
       const res  = await authFetch(`${config.API_URL}/api/users/address`);
+      if (!res.ok) return; // ✅ don't crash if address endpoint fails
       const data = await res.json();
       if (data.address) {
         setSavedAddress(data.address);
-        // Auto-fill with saved address
         setAddress({
-          full_name:    data.address.full_name || user?.name || "",
-          phone:        data.address.phone || "",
+          full_name:    data.address.full_name    || user?.name || "",
+          phone:        data.address.phone        || "",
           address_line: data.address.address_line || "",
-          city:         data.address.city || "",
-          state:        data.address.state || "",
-          pincode:      data.address.pincode || "",
+          city:         data.address.city         || "",
+          state:        data.address.state        || "",
+          pincode:      data.address.pincode      || "",
         });
         setUseSaved(true);
       }
-    } catch {}
+    } catch (err) {
+      console.warn("Could not load saved address:", err);
+    }
   };
 
-  // ✅ Switch between saved and new address
   const handleUseSaved = () => {
     setUseSaved(true);
     setAddress({
-      full_name:    savedAddress.full_name || user?.name || "",
-      phone:        savedAddress.phone || "",
+      full_name:    savedAddress.full_name    || user?.name || "",
+      phone:        savedAddress.phone        || "",
       address_line: savedAddress.address_line || "",
-      city:         savedAddress.city || "",
-      state:        savedAddress.state || "",
-      pincode:      savedAddress.pincode || "",
+      city:         savedAddress.city         || "",
+      state:        savedAddress.state        || "",
+      pincode:      savedAddress.pincode      || "",
     });
     setErrors({});
   };
@@ -84,29 +87,33 @@ export default function Checkout() {
   // ─── Validation ───────────────────────────────────────────────────────────
   const validateAddress = () => {
     const e = {};
-    if (!address.full_name.trim()) e.full_name = "Full name is required";
-    if (!/^[6-9]\d{9}$/.test(address.phone)) e.phone = "Enter valid 10-digit mobile number";
-    if (!address.address_line.trim()) e.address_line = "Address is required";
-    if (!address.city.trim()) e.city = "City is required";
-    if (!address.state) e.state = "State is required";
-    if (!/^\d{6}$/.test(address.pincode)) e.pincode = "Enter valid 6-digit PIN code";
+    if (!address.full_name.trim())                        e.full_name    = "Full name is required";
+    if (!/^[6-9]\d{9}$/.test(address.phone))             e.phone        = "Enter valid 10-digit mobile number";
+    if (!address.address_line.trim())                     e.address_line = "Address is required";
+    if (!address.city.trim())                             e.city         = "City is required";
+    if (!address.state)                                   e.state        = "State is required";
+    if (!/^\d{6}$/.test(address.pincode))                 e.pincode      = "Enter valid 6-digit PIN code";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const validatePayment = () => {
-    if (!paymentMethod) { setErrors({ payment: "Please select a payment method" }); return false; }
+    if (!paymentMethod) {
+      setErrors({ payment: "Please select a payment method" });
+      return false;
+    }
     if (paymentMethod === "upi") {
       if (!/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/.test(upiId)) {
-        setErrors({ upi: "Enter a valid UPI ID (e.g. name@upi)" }); return false;
+        setErrors({ upi: "Enter a valid UPI ID (e.g. name@upi)" });
+        return false;
       }
     }
     if (paymentMethod === "card") {
       const e = {};
       if (!/^\d{16}$/.test(card.number.replace(/\s/g, ""))) e.cardNumber = "Enter valid 16-digit card number";
-      if (!card.name.trim()) e.cardName = "Cardholder name required";
-      if (!/^\d{2}\/\d{2}$/.test(card.expiry)) e.cardExpiry = "Enter expiry as MM/YY";
-      if (!/^\d{3,4}$/.test(card.cvv)) e.cardCvv = "Enter valid CVV";
+      if (!card.name.trim())                                 e.cardName   = "Cardholder name required";
+      if (!/^\d{2}\/\d{2}$/.test(card.expiry))              e.cardExpiry = "Enter expiry as MM/YY";
+      if (!/^\d{3,4}$/.test(card.cvv))                      e.cardCvv    = "Enter valid CVV";
       setErrors(e);
       return Object.keys(e).length === 0;
     }
@@ -117,30 +124,70 @@ export default function Checkout() {
   // ─── Place Order ──────────────────────────────────────────────────────────
   const placeOrder = async () => {
     setProcessing(true);
+    setOrderError(""); // clear any previous error
+
     try {
+      const token = localStorage.getItem("nm_token");
+
+      // ✅ FIX: Check token exists before even making request
+      if (!token) {
+        setOrderError("Your session has expired. Please log in again.");
+        setGatewayStep("failed");
+        setProcessing(false);
+        setTimeout(() => navigate("/login"), 2000);
+        return;
+      }
+
       const res = await authFetch(`${config.API_URL}/api/orders/place`, {
         method: "POST",
         body: JSON.stringify({
           delivery_address: address,
-          payment_method: paymentMethod,
-          items: cartItems,
-          subtotal, shipping, total,
+          payment_method:   paymentMethod,
+          items:            cartItems,
+          subtotal,
+          shipping,
+          total,
         }),
       });
-      const data = await res.json();
+
+      // ✅ FIX: Handle 401 explicitly — session expired
+      if (res.status === 401) {
+        setOrderError("Your session expired. Redirecting to login...");
+        setGatewayStep("failed");
+        setProcessing(false);
+        setTimeout(() => navigate("/login"), 2000);
+        return;
+      }
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        // response wasn't JSON
+        setOrderError("Server returned an unexpected response. Please try again.");
+        setGatewayStep("failed");
+        setProcessing(false);
+        return;
+      }
+
       if (res.ok) {
-        // ✅ Save address as default after first order
-        await authFetch(`${config.API_URL}/api/users/address`, {
+        // ✅ Save address as default after successful order (non-blocking)
+        authFetch(`${config.API_URL}/api/users/address`, {
           method: "PUT",
           body: JSON.stringify(address),
-        });
+        }).catch(() => {}); // don't let this failure block the success screen
+
         setOrderId(data.order_id);
         setOrderPlaced(true);
         setGatewayStep("success");
       } else {
+        // ✅ FIX: Show the actual error from server
+        setOrderError(data.error || "Order could not be placed. Please try again.");
         setGatewayStep("failed");
       }
-    } catch {
+    } catch (err) {
+      console.error("placeOrder error:", err);
+      setOrderError("Network error. Please check your connection and try again.");
       setGatewayStep("failed");
     } finally {
       setProcessing(false);
@@ -149,6 +196,8 @@ export default function Checkout() {
 
   // ─── COD: place order directly ────────────────────────────────────────────
   const handleCOD = async () => {
+    // ✅ FIX: validate payment method is still "cod" before proceeding
+    if (paymentMethod !== "cod") return;
     await placeOrder();
   };
 
@@ -156,7 +205,6 @@ export default function Checkout() {
   const handleGatewayPayment = () => {
     if (!validatePayment()) return;
     setGatewayStep("processing");
-    // Simulate payment processing (2.5s), then place order
     setTimeout(() => { placeOrder(); }, 2500);
   };
 
@@ -187,8 +235,8 @@ export default function Checkout() {
             <span>💳 Payment: {paymentMethod === "cod" ? "Cash on Delivery" : paymentMethod === "upi" ? "UPI" : "Card"}</span>
           </div>
           <div className="co-success-actions">
-            <button className="co-btn-primary" onClick={() => navigate("/orders")}>View Orders</button>
-            <button className="co-btn-outline" onClick={() => navigate("/")}>Continue Shopping</button>
+            <button className="co-btn-primary"  onClick={() => navigate("/orders")}>View Orders</button>
+            <button className="co-btn-outline"  onClick={() => navigate("/")}>Continue Shopping</button>
           </div>
         </div>
       </div>
@@ -215,9 +263,13 @@ export default function Checkout() {
       <div className="co-gateway-page">
         <div className="co-gateway-card co-failed">
           <div className="co-fail-icon">❌</div>
-          <h2>Payment Failed</h2>
-          <p>Something went wrong. Please try again.</p>
-          <button className="co-btn-primary" onClick={() => { setGatewayStep("form"); setStep(1); }}>
+          <h2>Order Failed</h2>
+          {/* ✅ FIX: Show exact reason to user */}
+          <p>{orderError || "Something went wrong. Please try again."}</p>
+          <button
+            className="co-btn-primary"
+            onClick={() => { setGatewayStep("form"); setOrderError(""); setStep(paymentMethod === "cod" ? 2 : 1); }}
+          >
             Try Again
           </button>
         </div>
@@ -248,23 +300,16 @@ export default function Checkout() {
             <div className="co-section">
               <h2 className="co-section-title">📍 Delivery Address</h2>
 
-              {/* ✅ Saved address toggle */}
               {savedAddress && (
                 <div className="co-address-toggle">
-                  <div
-                    className={`co-address-option ${useSaved ? "co-address-selected" : ""}`}
-                    onClick={handleUseSaved}
-                  >
+                  <div className={`co-address-option ${useSaved ? "co-address-selected" : ""}`} onClick={handleUseSaved}>
                     <div className="co-address-option-header">
                       <span>🏠 Saved Address</span>
                       <span>{useSaved ? "🔘" : "⚪"}</span>
                     </div>
                     <p>{savedAddress.address_line}, {savedAddress.city} - {savedAddress.pincode}</p>
                   </div>
-                  <div
-                    className={`co-address-option ${!useSaved ? "co-address-selected" : ""}`}
-                    onClick={handleNewAddress}
-                  >
+                  <div className={`co-address-option ${!useSaved ? "co-address-selected" : ""}`} onClick={handleNewAddress}>
                     <div className="co-address-option-header">
                       <span>➕ Use Different Address</span>
                       <span>{!useSaved ? "🔘" : "⚪"}</span>
@@ -423,15 +468,20 @@ export default function Checkout() {
                 ))}
               </div>
 
+              {/* ✅ FIX: Show any order error inline before buttons */}
+              {orderError && (
+                <div className="co-order-error">
+                  ⚠️ {orderError}
+                </div>
+              )}
+
               <div className="co-nav-btns">
-                <button className="co-btn-outline" onClick={() => setStep(1)}>← Back</button>
-                {/* ✅ COD: place order directly */}
+                <button className="co-btn-outline" onClick={() => setStep(1)} disabled={processing}>← Back</button>
                 {paymentMethod === "cod" ? (
                   <button className="co-btn-primary co-confirm-btn" onClick={handleCOD} disabled={processing}>
                     {processing ? "Placing Order..." : "✅ Confirm Order"}
                   </button>
                 ) : (
-                  /* ✅ UPI/Card: simulate payment then place order */
                   <button className="co-btn-pay co-confirm-btn" onClick={handleGatewayPayment} disabled={processing}>
                     {processing ? "Processing..." : `💳 Pay ₹${total.toFixed(2)}`}
                   </button>
@@ -446,7 +496,7 @@ export default function Checkout() {
         <div className="co-sidebar">
           <h3>Price Summary</h3>
           {cartItems.map((item, index) => (
-              <div className="co-sidebar-item" key={item.product_id || item.id || index}>
+            <div className="co-sidebar-item" key={item.product_id || item.id || index}>
               <span>{item.name} × {item.quantity}</span>
               <span>₹{(item.price * item.quantity).toFixed(2)}</span>
             </div>
