@@ -159,12 +159,11 @@ function Home({ products, onAddToCart, addedIds }) {
 
 // ── App content ───────────────────────────────────────────────
 function AppContent() {
-  const { user, authFetch } = useAuth();
+  const { user, authFetch, loading } = useAuth(); // ✅ FIX: destructure `loading`
   const [products, setProducts]   = useState([]);
   const [addedIds, setAddedIds]   = useState([]);
   const [cartCount, setCartCount] = useState(0);
 
-  // ✅ FIX: fetchCartCount with proper error handling
   const fetchCartCount = async () => {
     if (!user) { setCartCount(0); return; }
     try {
@@ -177,7 +176,6 @@ function AppContent() {
     }
   };
 
-  // ✅ FIX: addToCart with full error handling
   const addToCart = async (id) => {
     try {
       const res = await authFetch(`${API_URL}/api/cart`, {
@@ -192,7 +190,6 @@ function AppContent() {
         return;
       }
 
-      // ✅ Success feedback
       setAddedIds(prev => [...prev, id]);
       fetchCartCount();
       setTimeout(() => setAddedIds(prev => prev.filter(i => i !== id)), 2000);
@@ -203,28 +200,32 @@ function AppContent() {
   };
 
   useEffect(() => {
-      fetch(`${API_URL}/api/products`)
-        .then(r => {
-          if (!r.ok) throw new Error(`Server error: ${r.status}`);
-          return r.json();
-        })
-        .then(data => {
-          if (!Array.isArray(data)) {
-            console.error("❌ Products API returned non-array:", data);
-            setProducts([]); // safe fallback
-            return;
-          }
-          console.log("✅ Products loaded:", data.length);
-          setProducts(data);
-        })
-        .catch(err => {
-          console.error("Products fetch error:", err);
-          setProducts([]); // safe fallback so map() never crashes
-        });
+    // ✅ FIX: Wait until auth is fully resolved before doing anything
+    if (loading) return;
 
-      fetchCartCount();
+    fetch(`${API_URL}/api/products`)
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error: ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (!Array.isArray(data)) {
+          console.error("❌ Products API returned non-array:", data);
+          setProducts([]);
+          return;
+        }
+        console.log("✅ Products loaded:", data.length);
+        setProducts(data);
+      })
+      .catch(err => {
+        console.error("Products fetch error:", err);
+        setProducts([]);
+      });
+
+    fetchCartCount(); // ✅ Only called after loading is false & user is known
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, loading]); // ✅ FIX: added `loading` as dependency
 
   return (
     <div className="app">

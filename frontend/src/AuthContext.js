@@ -29,7 +29,6 @@ export function AuthProvider({ children }) {
 
   const getToken = () => localStorage.getItem("nm_token");
 
-  // ✅ UPDATED: auto-logout on 401
   const authFetch = async (url, options = {}) => {
     const token = getToken();
     const res = await fetch(url, {
@@ -41,8 +40,8 @@ export function AuthProvider({ children }) {
       },
     });
 
-    // ✅ If token expired or invalid, auto logout
-    if (res.status === 401) {
+    // ✅ FIX: Only auto-logout if a token existed (user was logged in)
+    if (res.status === 401 && token) {
       logout();
     }
 
