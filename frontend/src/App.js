@@ -203,17 +203,26 @@ function AppContent() {
   };
 
   useEffect(() => {
-    // Load products
-    fetch(`${API_URL}/api/products`)
-      .then(r => r.json())
-      .then(data => {
-        console.log("✅ Products loaded:", data.length); // debug
-        setProducts(data);
-      })
-      .catch(err => console.error("Products fetch error:", err));
+      fetch(`${API_URL}/api/products`)
+        .then(r => {
+          if (!r.ok) throw new Error(`Server error: ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          if (!Array.isArray(data)) {
+            console.error("❌ Products API returned non-array:", data);
+            setProducts([]); // safe fallback
+            return;
+          }
+          console.log("✅ Products loaded:", data.length);
+          setProducts(data);
+        })
+        .catch(err => {
+          console.error("Products fetch error:", err);
+          setProducts([]); // safe fallback so map() never crashes
+        });
 
-    // Load cart count
-    fetchCartCount();
+      fetchCartCount();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 

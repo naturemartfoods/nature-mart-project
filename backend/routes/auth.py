@@ -5,14 +5,14 @@ from models import connect_db
 import jwt
 import datetime
 import os
-from config import SECRET_KEY
 
 auth_bp = Blueprint('auth', __name__)
 
+# ✅ Single SECRET_KEY declaration
 SECRET_KEY = os.environ.get("SECRET_KEY", "nature-mart-secret-key-change-in-production")
 
 
-# ─── JWT Helpers ────────────────────────────────────────────
+# ─── JWT Helpers ─────────────────────────────────────────────
 
 def generate_token(user_id, role):
     payload = {
@@ -27,17 +27,14 @@ def decode_token(token):
     return jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
 
 
-# ✅ UPDATED token_required (CORS FIX ADDED)
+# ✅ token_required — defined ONCE only
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-
-        # ✅ ALLOW PREFLIGHT REQUEST (IMPORTANT FIX)
         if request.method == "OPTIONS":
             return "", 200
 
         token = None
-
         if "Authorization" in request.headers:
             parts = request.headers["Authorization"].split()
             if len(parts) == 2 and parts[0] == "Bearer":
@@ -49,24 +46,19 @@ def token_required(f):
         try:
             data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             request.user_id = data["user_id"]
-
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expired"}), 401
-
         except jwt.InvalidTokenError:
             return jsonify({"error": "Invalid token"}), 401
 
         return f(*args, **kwargs)
-
     return decorated
 
 
-# ✅ UPDATED admin_required (CORS FIX ADDED)
+# ✅ admin_required — defined ONCE only
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-
-        # ✅ ALLOW PREFLIGHT
         if request.method == "OPTIONS":
             return "", 200
 
@@ -78,23 +70,16 @@ def admin_required(f):
             data = decode_token(token)
             if data.get("role") != "admin":
                 return jsonify({"error": "Admin access required"}), 403
-
             request.user_id   = data["user_id"]
             request.user_role = data["role"]
-
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token expired"}), 401
-
         except Exception:
             return jsonify({"error": "Invalid token"}), 401
 
         return f(*args, **kwargs)
-
     return decorated
 
-
-# ─── REST OF YOUR CODE (UNCHANGED) ───────────────────────────
-# register, login, profile, update profile remain SAME
 
 # ─── Register ────────────────────────────────────────────────
 
@@ -112,7 +97,6 @@ def register():
 
     conn = connect_db()
     cur  = conn.cursor()
-
     cur.execute("SELECT id FROM users WHERE email=%s", (email,))
     if cur.fetchone():
         conn.close()
@@ -215,37 +199,3 @@ def update_profile():
     conn.commit()
     conn.close()
     return jsonify({"message": "Profile updated successfully"})
-
-
-
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-
-        # ✅ ADD THIS LINE (fix CORS preflight)
-        if request.method == "OPTIONS":
-            return "", 200
-
-        token = None
-
-        if "Authorization" in request.headers:
-            parts = request.headers["Authorization"].split()
-            if len(parts) == 2 and parts[0] == "Bearer":
-                token = parts[1]
-
-        if not token:
-            return jsonify({"error": "Token missing"}), 401
-
-        try:
-            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            request.user_id = data["user_id"]
-
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expired"}), 401
-
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Invalid token"}), 401
-
-        return f(*args, **kwargs)
-
-    return decorated

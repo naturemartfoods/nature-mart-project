@@ -2,9 +2,13 @@ import os
 import psycopg2
 from werkzeug.security import generate_password_hash
 
+# ✅ Single declaration with postgres:// fix
 DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 
+# ✅ connect_db function was MISSING - add this
 def connect_db():
     return psycopg2.connect(DATABASE_URL)
 
@@ -13,7 +17,7 @@ def create_tables():
     conn = connect_db()
     cur  = conn.cursor()
 
-    # ── USERS ─────────────────────────────────────────────────────────────────
+    # ── USERS ────────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id         SERIAL PRIMARY KEY,
@@ -26,7 +30,6 @@ def create_tables():
     )
     """)
 
-    # Add address columns to users (safe migration)
     for col, definition in [
         ("phone",        "TEXT"),
         ("address_line", "TEXT"),
@@ -41,7 +44,7 @@ def create_tables():
             conn.rollback()
             print(f"[users migration] {col}: {e}")
 
-    # ── PRODUCTS ──────────────────────────────────────────────────────────────
+    # ── PRODUCTS ─────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id          SERIAL PRIMARY KEY,
@@ -55,7 +58,7 @@ def create_tables():
     )
     """)
 
-    # ── CART ──────────────────────────────────────────────────────────────────
+    # ── CART ─────────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS cart (
         id         SERIAL PRIMARY KEY,
@@ -67,9 +70,7 @@ def create_tables():
     )
     """)
 
-    # ── ORDERS ────────────────────────────────────────────────────────────────
-    # order_id is a human-readable group key like "NM-20250417-A1B2C3"
-    # Each row = one line item; multiple rows share the same order_id
+    # ── ORDERS ───────────────────────────────────────────────
     cur.execute("""
     CREATE TABLE IF NOT EXISTS orders (
         id             SERIAL PRIMARY KEY,
@@ -89,7 +90,6 @@ def create_tables():
     )
     """)
 
-    # Safe migration: add any missing columns to orders
     for col, definition in [
         ("order_id",       "TEXT"),
         ("name",           "TEXT"),
@@ -104,7 +104,6 @@ def create_tables():
             conn.rollback()
             print(f"[orders migration] {col}: {e}")
 
-    # Index for fast order lookups by order_id
     try:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders (order_id)")
         conn.commit()
@@ -112,7 +111,7 @@ def create_tables():
         conn.rollback()
         print(f"[index migration] order_id index: {e}")
 
-    # ── Default admin account ─────────────────────────────────────────────────
+    # ── Default admin ─────────────────────────────────────────
     cur.execute("SELECT id FROM users WHERE role='admin' LIMIT 1")
     if not cur.fetchone():
         hashed = generate_password_hash("admin123")
