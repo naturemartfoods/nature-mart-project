@@ -43,7 +43,6 @@ def add_to_cart():
 @token_required
 def get_cart():
     user_id  = request.user_id
-    host_url = request.host_url.rstrip("/")
     conn     = connect_db()
     cur      = conn.cursor()
 
@@ -67,15 +66,11 @@ def get_cart():
     for row in rows:
         raw_image = row[3] or ""
 
-        # ✅ FIXED: always build correct URL
-        if raw_image.startswith("http"):
-            image_url = raw_image                        # already full URL
-        elif raw_image.startswith("/images/"):
-            image_url = host_url + raw_image             # has /images/ prefix
-        elif raw_image.strip():
-            image_url = f"{host_url}/images/{raw_image}" # just filename e.g. chia.jpg
+        # Just return clean filename — let frontend build the URL
+        if raw_image.startswith("/images/"):
+            image_name = raw_image.replace("/images/", "")
         else:
-            image_url = ""
+            image_name = raw_image  # already just "chia.jpg"
 
         subtotal = row[2] * row[4]
         total   += subtotal
@@ -84,13 +79,12 @@ def get_cart():
             "product_id": row[0],
             "name":       row[1],
             "price":      row[2],
-            "image":      image_url,
+            "image":      image_name,  # returns "chia.jpg"
             "quantity":   row[4],
             "subtotal":   subtotal,
         })
 
     return jsonify({"items": cart_items, "total": total}), 200
-
 
 @cart_bp.route('/cart/increase/<int:id>', methods=['PUT'])
 @token_required

@@ -170,12 +170,12 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
                 <div className="nm-cart-card" key={pid}>
                   <img
                     src={
-                      item.image
-                        ? item.image.startsWith("http")
-                          ? item.image
-                          : `${config.API_URL}${item.image}`
-                        : "/placeholder.png"
-                    }
+                        item.image
+                          ? item.image.startsWith("http")
+                            ? item.image
+                            : `${config.API_URL}/images/${item.image}`
+                          : "/placeholder.png"
+                      }
                     alt={item.name}
                     className="nm-cart-img"
                     onError={(e) => (e.target.src = "/placeholder.png")}
