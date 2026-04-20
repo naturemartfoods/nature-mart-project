@@ -88,9 +88,9 @@ function ProductCard({ product, onAddToCart, added }) {
       <div className="card-img-wrap">
         <img
           src={
-            product.image?.startsWith("http")
-              ? product.image
-              : `${API_URL}/images/${product.image}`
+              product.image?.startsWith("http")
+                ? product.image
+                : `${API_URL}/images/${product.image}`
           }
           alt={product.name}
           onError={(e) => (e.target.src = "/placeholder.png")}

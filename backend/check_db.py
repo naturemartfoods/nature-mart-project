@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+import os
+
+# Load .env file first before importing models
+load_dotenv()
+
 from models import connect_db
 
 conn = connect_db()
