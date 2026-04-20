@@ -155,7 +155,7 @@ export default function Profile() {
             {error && <div className="error-banner">{error}</div>}
 
             <form onSubmit={submitProfile}>
-              <div className="form-row-2">
+              <div className="form-row-2" style={{ display: "flex", gap: "20px", marginBottom: "15px" }}>
                 <div className="form-group">
                   <label>Full Name</label>
                   <input name="name" value={form.name} onChange={handle} placeholder="Your name" />
@@ -166,7 +166,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="form-row-2">
+              <div className="form-row-2" style={{ display: "flex", gap: "20px", marginBottom: "15px" }}>
                 <div className="form-group">
                   <label>New Password <span className="optional">(leave blank to keep)</span></label>
                   <input type="password" name="password" value={form.password} onChange={handle} placeholder="••••••••" />
