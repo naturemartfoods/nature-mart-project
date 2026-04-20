@@ -61,16 +61,21 @@ def get_cart():
     rows  = cur.fetchall()
     conn.close()
 
+    BASE_URL = "https://nature-mart-project.onrender.com"
+
     cart_items = []
     total = 0
     for row in rows:
         raw_image = row[3] or ""
 
-        # Just return clean filename — let frontend build the URL
-        if raw_image.startswith("/images/"):
-            image_name = raw_image.replace("/images/", "")
+        if raw_image.startswith("http"):
+            image_url = raw_image
+        elif raw_image.startswith("/images/"):
+            image_url = BASE_URL + raw_image
+        elif raw_image.strip():
+            image_url = f"{BASE_URL}/images/{raw_image}"
         else:
-            image_name = raw_image  # already just "chia.jpg"
+            image_url = ""
 
         subtotal = row[2] * row[4]
         total   += subtotal
@@ -79,7 +84,7 @@ def get_cart():
             "product_id": row[0],
             "name":       row[1],
             "price":      row[2],
-            "image":      image_name,  # returns "chia.jpg"
+            "image":      image_url,
             "quantity":   row[4],
             "subtotal":   subtotal,
         })

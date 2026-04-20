@@ -172,8 +172,8 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
                     src={
                         item.image
                           ? item.image.startsWith("http")
-                            ? item.image
-                            : `${config.API_URL}/images/${item.image}`
+                            ? item.image        // ✅ full URL from backend — use as-is
+                            : `${config.API_URL}/images/${item.image}`  // fallback
                           : "/placeholder.png"
                       }
                     alt={item.name}
