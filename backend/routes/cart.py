@@ -62,7 +62,6 @@ def get_cart():
     conn.close()
 
     BASE_URL = "https://nature-mart-project.onrender.com"
-
     cart_items = []
     total = 0
     for row in rows:
