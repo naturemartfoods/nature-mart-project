@@ -18,7 +18,6 @@ def add_to_cart():
     conn = connect_db()
     cur  = conn.cursor()
 
-    # ✅ Check product exists
     cur.execute("SELECT id, stock FROM products WHERE id=%s AND is_active=1", (product_id,))
     product = cur.fetchone()
     if not product:
@@ -67,17 +66,21 @@ def get_cart():
     total = 0
     for row in rows:
         raw_image = row[3] or ""
+
+        # ✅ FIXED: always build correct URL
         if raw_image.startswith("http"):
-            image_url = raw_image
+            image_url = raw_image                        # already full URL
+        elif raw_image.startswith("/images/"):
+            image_url = host_url + raw_image             # has /images/ prefix
         elif raw_image.strip():
-            image_url = host_url + raw_image
+            image_url = f"{host_url}/images/{raw_image}" # just filename e.g. chia.jpg
         else:
             image_url = ""
 
         subtotal = row[2] * row[4]
         total   += subtotal
         cart_items.append({
-            "id":         row[0],   # same as product_id for compatibility
+            "id":         row[0],
             "product_id": row[0],
             "name":       row[1],
             "price":      row[2],
@@ -131,7 +134,6 @@ def remove_item(id):
     return jsonify({"message": "Item removed"}), 200
 
 
-# ✅ NEW: Clear entire cart (called after order placed)
 @cart_bp.route('/cart/clear', methods=['DELETE'])
 @token_required
 def clear_cart():

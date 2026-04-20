@@ -89,11 +89,11 @@ function ProductCard({ product, onAddToCart, added }) {
         <img
           src={
               product.image?.startsWith("http")
-                ? product.image
-                : `${API_URL}/images/${product.image}`
+                ? product.image                          // if full URL → use as-is
+                : `${API_URL}/images/${product.image}`   // if filename → build URL
           }
           alt={product.name}
-          onError={(e) => (e.target.src = "/placeholder.png")}
+          // onError={(e) => (e.target.src = "/placeholder.png")}
         />
         <div className="card-img-overlay">
           <span className="tag-natural">Natural</span>

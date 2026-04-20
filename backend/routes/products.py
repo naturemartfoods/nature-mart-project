@@ -23,21 +23,19 @@ def get_products():
 
         for row in rows:
             raw_image = row[4] or ""
-
-            # Strip any path prefix, just return clean filename
-            if raw_image.startswith("/images/"):
-                image_url = raw_image.replace("/images/", "")  # just "chia.jpg"
-            elif raw_image.startswith("http"):
-                image_url = raw_image  # external URL, keep as-is
+            
+            if raw_image.startswith("http"):
+                image_url = raw_image
             else:
-                image_url = raw_image  # already just filename
+                # raw_image is just "chia.jpg" now
+                image_url = f"{host}/images/{raw_image}" if raw_image else ""
 
             products.append({
                 "id":          row[0],
                 "name":        row[1],
                 "price":       row[2],
                 "description": row[3],
-                "image":       image_url,  # returns "chia.jpg"
+                "image":       image_url,
                 "stock":       row[5],
                 "weight":      row[6],
             })
