@@ -142,6 +142,12 @@ export default function Checkout() {
     setProcessing(true);
     setOrderError("");
 
+    console.log("placeOrder called with:", {
+      delivery_address: address,
+      payment_method: paymentMethod,
+      items: normalisedItems,
+    });
+
     try {
       const token = localStorage.getItem("nm_token");
       if (!token) {
@@ -207,8 +213,15 @@ export default function Checkout() {
 
   // COD: place directly
   const handleCOD = async () => {
-    if (paymentMethod !== "cod") return;
-    await placeOrder();
+      console.log("handleCOD called, paymentMethod:", paymentMethod);
+      console.log("normalisedItems:", normalisedItems);
+      console.log("address:", address);
+      
+      if (paymentMethod !== "cod") {
+          console.log("❌ paymentMethod is not cod, returning early!");
+          return;
+      }
+      await placeOrder();
   };
 
   // UPI / Card: simulate gateway then place
