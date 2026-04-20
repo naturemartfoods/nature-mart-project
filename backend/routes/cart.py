@@ -1,8 +1,26 @@
+# Overwrite cart.py completely with correct code
 from flask import Blueprint, request, jsonify
 from routes.auth import token_required
 from models import connect_db
 
 cart_bp = Blueprint('cart', __name__)
+
+BASE_URL = "https://nature-mart-project.onrender.com"
+
+
+def build_image_url(raw_image):
+    if not raw_image:
+        return ""
+    if raw_image.startswith("http"):
+        # Fix broken URLs like "onrender.comchia.jpg"
+        if "/images/" not in raw_image:
+            filename = raw_image.split("com")[-1].lstrip("/")
+            return f"{BASE_URL}/images/{filename}"
+        return raw_image
+    elif raw_image.startswith("/images/"):
+        return BASE_URL + raw_image
+    else:
+        return f"{BASE_URL}/images/{raw_image}"
 
 
 @cart_bp.route('/cart', methods=['POST'])
@@ -42,42 +60,31 @@ def add_to_cart():
 @cart_bp.route('/cart', methods=['GET'])
 @token_required
 def get_cart():
-    user_id  = request.user_id
-    conn     = connect_db()
-    cur      = conn.cursor()
+    user_id = request.user_id
+    conn    = connect_db()
+    cur     = conn.cursor()
 
     cur.execute("""
         SELECT
-            products.id        AS product_id,
-            products.name      AS name,
-            products.price     AS price,
-            products.image     AS image,
-            cart.quantity      AS quantity
+            products.id       AS product_id,
+            products.name     AS name,
+            products.price    AS price,
+            products.image    AS image,
+            cart.quantity     AS quantity
         FROM cart
         JOIN products ON cart.product_id = products.id
         WHERE cart.user_id = %s
     """, (user_id,))
 
-    rows  = cur.fetchall()
+    rows = cur.fetchall()
     conn.close()
 
-    BASE_URL = "https://nature-mart-project.onrender.com"
     cart_items = []
     total = 0
     for row in rows:
-        raw_image = row[3] or ""
-
-        if raw_image.startswith("http"):
-            image_url = raw_image
-        elif raw_image.startswith("/images/"):
-            image_url = BASE_URL + raw_image
-        elif raw_image.strip():
-            image_url = f"{BASE_URL}/images/{raw_image}"
-        else:
-            image_url = ""
-
-        subtotal = row[2] * row[4]
-        total   += subtotal
+        image_url = build_image_url(row[3])
+        subtotal  = row[2] * row[4]
+        total    += subtotal
         cart_items.append({
             "id":         row[0],
             "product_id": row[0],
@@ -89,6 +96,7 @@ def get_cart():
         })
 
     return jsonify({"items": cart_items, "total": total}), 200
+
 
 @cart_bp.route('/cart/increase/<int:id>', methods=['PUT'])
 @token_required
