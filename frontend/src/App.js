@@ -513,7 +513,6 @@
 //   );
 // }
 
-
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";

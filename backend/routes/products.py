@@ -48,6 +48,8 @@
 #         print("❌ Products fetch error:", e)
 #         return jsonify({"error": "Failed to fetch products", "details": str(e)}), 500
 
+
+
 from flask import Blueprint, jsonify, request
 from models import connect_db
 

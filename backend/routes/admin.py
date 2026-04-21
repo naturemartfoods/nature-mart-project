@@ -247,7 +247,6 @@
 #     conn.close()
 #     return jsonify({"message": "Product deleted"})
 
-
 import os
 import uuid
 from flask import Blueprint, request, jsonify
