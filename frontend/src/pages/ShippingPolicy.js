@@ -81,8 +81,8 @@ export default function ShippingPolicy() {
           <section>
             <h2>8. Contact</h2>
             <div className="policy-contact-box">
-              <p>📧 <strong>support@naturemart.in</strong></p>
-              <p>📍 Plot No. 45, Nandanvan Society, Katargam, Surat - 395004, Gujarat</p>
+              <p>📧 <strong>naturemartfoods@gmail.com</strong></p>
+              <p>📍 Plot No. 514, Five Square Point, Opp Anjani Green Party Plot,Jahangirpura, Surat - 395005, Gujarat</p>
               <p>🕐 Mon–Sat: 9:00 AM – 6:00 PM</p>
             </div>
           </section>

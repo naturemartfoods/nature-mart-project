@@ -68,8 +68,8 @@ export default function RefundPolicy() {
           <section>
             <h2>6. Contact for Refunds</h2>
             <div className="policy-contact-box">
-              <p>📧 <strong>support@naturemart.in</strong></p>
-              <p>📍 Plot No. 45, Nandanvan Society, Katargam, Surat - 395004</p>
+              <p>📧 <strong>naturemartfoods@gmail.com</strong></p>
+              <p>📍 Plot No. 514, Five Square Point, Opp Anjani Green Party Plot,Jahangirpura, Surat - 395005, Gujarat</p>
               <p>🕐 Response Time: Within 2 business days</p>
             </div>
           </section>

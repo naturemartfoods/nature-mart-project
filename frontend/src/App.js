@@ -273,12 +273,12 @@ function Home({ products, onAddToCart, addedIds }) {
       <div className="hero">
         <div className="hero-content">
           <p className="hero-sub">Pure · Natural · Healthy</p>
-          <h1 className="hero-title">From Our Farm To Kitchen.<br /></h1>
+          <h3 className="hero-title">From our farm to your kitchen<br /></h3>
           <p className="hero-desc">Handpicked superfoods delivered straight to your door.</p>
           <div className="hero-badges">
             <span className="hero-badge">✅ FSSAI Certified</span>
-            <span className="hero-badge">🚚 Pan India Delivery</span>
-            <span className="hero-badge">🌿 100% Organic</span>
+            <span className="hero-badge">🌿 No additives. No preservatives.</span>
+            <span className="hero-badge">🚚 Bringing farm-fresh goodness to every corner of India.</span>
           </div>
         </div>
         <div className="hero-accent"></div>
@@ -436,8 +436,8 @@ function AppContent() {
           <div className="footer-col">
             <h4 className="footer-col-title">Contact Us</h4>
             <ul className="footer-contact">
-              <li><span>📍</span><span>Plot No. 45, Nandanvan Society,<br />Behind Kanteshwar Temple,<br />Katargam, Surat - 395004, Gujarat</span></li>
-              <li><span>📧</span><a href="mailto:support@naturemart.in">support@naturemart.in</a></li>
+              <li><span>📍</span><span>Plot No. 514, Five Square Point,<br /> Opp Anjani Green Party Plot,<br />Jahangirpura, Surat - 395005, Gujarat</span></li>
+              <li><span>📧</span><a href="mailto:naturemartfoods@gmail.com">naturemartfoods@gmail.com</a></li>
               <li><span>🕐</span><span>Mon–Sat: 9:00 AM – 6:00 PM</span></li>
             </ul>
           </div>
@@ -446,7 +446,7 @@ function AppContent() {
           <p>© {new Date().getFullYear()} Nature Mart. All rights reserved. | Proprietor: Gavli Ashvinkumar Shyamrao</p>
           <div className="footer-trust">
             <span>🔒 Secure Payments</span>
-            <span>🌿 No additives. No preservatives. Just pure goodness.</span>
+            <span>🌿 No additives. No preservatives.</span>
             <span>🚚 Bringing farm-fresh goodness to every corner of India.</span>
           </div>
         </div>

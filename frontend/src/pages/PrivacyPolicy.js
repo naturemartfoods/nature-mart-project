@@ -63,8 +63,8 @@ export default function PrivacyPolicy() {
             <h2>7. Contact Us</h2>
             <p>For any privacy-related concerns, contact us at:</p>
             <div className="policy-contact-box">
-              <p>📧 <strong>support@naturemart.in</strong></p>
-              <p>📍 Plot No. 45, Nandanvan Society, Behind Kanteshwar Temple, Katargam, Surat - 395004, Gujarat</p>
+              <p>📧 <strong>naturemartfoods@gmail.com</strong></p>
+              <p>📍 Plot No. 514, Five Square Point, Opp Anjani Green Party Plot,Jahangirpura, Surat - 395005, Gujarat</p>
             </div>
           </section>
         </div>

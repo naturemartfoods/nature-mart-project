@@ -72,8 +72,8 @@ export default function TermsConditions() {
           <section>
             <h2>8. Contact</h2>
             <div className="policy-contact-box">
-              <p>📧 <strong>support@naturemart.in</strong></p>
-              <p>📍 Plot No. 45, Nandanvan Society, Behind Kanteshwar Temple, Katargam, Surat - 395004, Gujarat</p>
+              <p>📧 <strong>naturemartfoods@gmail.com</strong></p>
+              <p>📍 Plot No. 514, Five Square Point, Opp Anjani Green Party Plot,Jahangirpura, Surat - 395005, Gujarat</p>
               <p>🏛️ GST: 24ATQPG4926Q1Z0 | FSSAI: 20726031002567</p>
             </div>
           </section>
