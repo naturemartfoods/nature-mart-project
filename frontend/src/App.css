@@ -1204,3 +1204,238 @@ a { text-decoration: none; color: inherit; }
   .why-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 34px; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Paste ALL of this into your App.css
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Product card carousel ────────────────────────────────── */
+.carousel-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+/* All slides stacked, hidden by default */
+.carousel-slide {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  border-radius: inherit;
+}
+
+/* Active slide is visible */
+.carousel-slide.carousel-active {
+  opacity: 1;
+  position: relative;   /* takes up space so card height is correct */
+}
+
+/* Arrow buttons */
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.carousel-wrap:hover .carousel-btn {
+  opacity: 1;
+}
+.carousel-prev { left: 8px; }
+.carousel-next { right: 8px; }
+.carousel-btn:hover { background: rgba(0,0,0,0.6); }
+
+/* Dot indicators */
+.carousel-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  z-index: 10;
+}
+.carousel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.carousel-dot.carousel-dot-active {
+  background: #fff;
+  transform: scale(1.3);
+}
+
+/* Placeholder when no image */
+.card-img-placeholder {
+  width: 100%;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  background: #f0f7f0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   Paste ALL of this into your Admin.css
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Multi-image upload preview grid ─────────────────────── */
+.multi-image-preview-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.multi-image-item {
+  position: relative;
+  display: inline-block;
+}
+.multi-image-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #a3c9a8;
+  display: block;
+}
+.img-badge-main {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(74,124,89,0.85);
+  color: #fff;
+  font-size: 10px;
+  text-align: center;
+  border-radius: 0 0 6px 6px;
+  padding: 2px 0;
+}
+
+/* ── Upload box ───────────────────────────────────────────── */
+.image-upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed #a3c9a8;
+  border-radius: 10px;
+  padding: 24px 16px;
+  cursor: pointer;
+  background: #f5fbf5;
+  color: #4a7c59;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 8px;
+}
+.image-upload-box:hover {
+  border-color: #4a7c59;
+  background: #edf7ee;
+}
+.image-upload-box .upload-icon { font-size: 26px; }
+.image-upload-box span { font-size: 14px; font-weight: 500; }
+.image-upload-box small { font-size: 11px; color: #8aaa90; }
+
+/* ── Remove image button ──────────────────────────────────── */
+.btn-remove-image {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-remove-image:hover { background: #c0392b; }
+
+/* ── Small spinner ────────────────────────────────────────── */
+.spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+/* ── Table thumbnail carousel ─────────────────────────────── */
+.thumb-carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.thumb-dots {
+  display: flex;
+  gap: 3px;
+}
+.thumb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ccc;
+  cursor: pointer;
+}
+.thumb-dot.active {
+  background: #4a7c59;
+}
+
+/* ── Carousel ── */
+.carousel-wrap { position: relative; overflow: hidden; }
+.carousel-slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.6s ease; }
+.carousel-slide.carousel-active { opacity: 1; position: relative; }
+.carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.35); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; opacity: 0; transition: opacity 0.2s; }
+.carousel-wrap:hover .carousel-btn { opacity: 1; }
+.carousel-prev { left: 8px; }
+.carousel-next { right: 8px; }
+.carousel-dots { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 10; }
+.carousel-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.55); cursor: pointer; }
+.carousel-dot.carousel-dot-active { background: #fff; transform: scale(1.3); }
+.card-img-placeholder { width: 100%; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 48px; background: #f0f7f0; }
+
+/* ── Weight selector buttons ── */
+.weight-selector {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.weight-btn {
+  padding: 5px 14px;
+  border: 1.5px solid #a3c9a8;
+  border-radius: 20px;
+  background: #fff;
+  color: #4a7c59;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.weight-btn:hover { background: #edf7ee; }
+.weight-btn.weight-btn-active {
+  background: #4a7c59;
+  color: #fff;
+  border-color: #4a7c59;
+}

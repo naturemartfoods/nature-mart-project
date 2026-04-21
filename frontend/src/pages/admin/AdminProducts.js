@@ -1,44 +1,137 @@
-// import { useEffect, useState } from "react";
+
+
+// import { useEffect, useRef, useState } from "react";
 // import { useAuth } from "../../AuthContext";
 // import "./Admin.css";
 
-// const EMPTY = { name: "", price: "", description: "", weight: "", stock: 100, image: "" };
 // const API_URL = "https://nature-mart-project.onrender.com";
+// const EMPTY = { name: "", price: "", description: "", weight: "", stock: 100, images: [] };
+
+// // ─── Helper: parse images field (comma-separated string → array) ───
+// const parseImages = (image) => {
+//   if (!image) return [];
+//   if (Array.isArray(image)) return image.filter(Boolean);
+//   return image.split(",").map(s => s.trim()).filter(Boolean);
+// };
+
+// const getImageSrc = (image) => {
+//   if (!image) return null;
+//   if (image.startsWith("http")) return image;
+//   if (image.startsWith("/")) return `${API_URL}${image}`;
+//   return `${API_URL}/images/${image}`;
+// };
+
+// // ─── Mini Carousel for table thumbnail ──────────────────────
+// function ThumbCarousel({ images }) {
+//   const [idx, setIdx] = useState(0);
+//   if (!images.length) return <div className="product-thumb-placeholder">🌿</div>;
+//   if (images.length === 1) return <img src={getImageSrc(images[0])} alt="" className="product-thumb" />;
+//   return (
+//     <div className="thumb-carousel">
+//       <img src={getImageSrc(images[idx])} alt="" className="product-thumb" />
+//       <div className="thumb-dots">
+//         {images.map((_, i) => (
+//           <span key={i} className={`thumb-dot ${i === idx ? "active" : ""}`} onClick={() => setIdx(i)} />
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
+
 // export default function AdminProducts() {
 //   const { authFetch } = useAuth();
-//   const [products, setProducts] = useState([]);
-//   const [loading, setLoading]   = useState(true);
-//   const [modal, setModal]       = useState(null); // null | "add" | "edit"
-//   const [form, setForm]         = useState(EMPTY);
-//   const [editId, setEditId]     = useState(null);
-//   const [saving, setSaving]     = useState(false);
+//   const [products, setProducts]   = useState([]);
+//   const [loading, setLoading]     = useState(true);
+//   const [modal, setModal]         = useState(null);
+//   const [form, setForm]           = useState(EMPTY);
+//   const [editId, setEditId]       = useState(null);
+//   const [saving, setSaving]       = useState(false);
+//   const [uploading, setUploading] = useState(false);
+//   const fileInputRef              = useRef(null);
 
+//   // ─── Load products ──────────────────────────────────────────
 //   const load = () => {
 //     authFetch(`${API_URL}/api/admin/products`)
 //       .then(r => r.json())
 //       .then(d => { setProducts(d); setLoading(false); });
 //   };
-
 //   useEffect(() => { load(); }, []);
 
 //   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-//   const openAdd  = () => { setForm(EMPTY); setEditId(null); setModal("add"); };
-//   const openEdit = (p)  => {
-//     setForm({ name: p.name, price: p.price, description: p.description,
-//               weight: p.weight || "", stock: p.stock, image: p.image || "" });
+//   // ─── Open modals ────────────────────────────────────────────
+//   const openAdd = () => {
+//     setForm(EMPTY);
+//     setEditId(null);
+//     setModal("add");
+//   };
+
+//   const openEdit = (p) => {
+//     setForm({
+//       name:      p.name,
+//       price:     p.price,
+//       description: p.description,
+//       weight:    p.weight || "",
+//       stock:     p.stock,
+//       images:    parseImages(p.image),
+//       is_active: p.is_active,
+//     });
 //     setEditId(p.id);
 //     setModal("edit");
 //   };
 
+//   // ─── Upload images (supports multiple at once) ───────────────
+//   const handleImageUpload = async (e) => {
+//     const files = Array.from(e.target.files);
+//     if (!files.length) return;
+//     setUploading(true);
+
+//     const uploaded = [];
+//     for (const file of files) {
+//       const formData = new FormData();
+//       formData.append("image", file);
+//       try {
+//         const res  = await authFetch(`${API_URL}/api/admin/products/upload-image`, {
+//           method: "POST",
+//           body:   formData,
+//         });
+//         const data = await res.json();
+//         if (data.image_url) uploaded.push(data.image_url);
+//         else alert("One image failed: " + (data.error || "Unknown error"));
+//       } catch {
+//         alert("Upload failed for one image. Please retry.");
+//       }
+//     }
+
+//     setForm(prev => ({ ...prev, images: [...prev.images, ...uploaded] }));
+//     setUploading(false);
+//     if (fileInputRef.current) fileInputRef.current.value = "";
+//   };
+
+//   const removeImage = (idx) => {
+//     setForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }));
+//   };
+
+//   // ─── Save product ────────────────────────────────────────────
 //   const save = async (e) => {
 //     e.preventDefault();
 //     setSaving(true);
 //     const url    = modal === "add"
-//       ? `${API_URL}//api/admin/products`
-//       : `${API_URL}//api/admin/products/${editId}`;
+//       ? `${API_URL}/api/admin/products`
+//       : `${API_URL}/api/admin/products/${editId}`;
 //     const method = modal === "add" ? "POST" : "PUT";
-//     await authFetch(url, { method, body: JSON.stringify({ ...form, price: Number(form.price), stock: Number(form.stock) }) });
+
+//     // Store images as comma-separated string in the `image` column
+//     await authFetch(url, {
+//       method,
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         ...form,
+//         image: form.images.join(","),
+//         price: Number(form.price),
+//         stock: Number(form.stock),
+//       }),
+//     });
 //     setSaving(false);
 //     setModal(null);
 //     load();
@@ -46,11 +139,13 @@
 
 //   const remove = async (id) => {
 //     if (!window.confirm("Delete this product?")) return;
-//     await authFetch(`${API_URL}//api/admin/products/${id}`, { method: "DELETE" });
+//     await authFetch(`${API_URL}/api/admin/products/${id}`, { method: "DELETE" });
 //     load();
 //   };
 
-//   if (loading) return <div className="page-loader"><div className="spinner"></div><p>Loading products…</p></div>;
+//   if (loading) return (
+//     <div className="page-loader"><div className="spinner"></div><p>Loading products…</p></div>
+//   );
 
 //   return (
 //     <div className="admin-page">
@@ -62,21 +157,21 @@
 //         <button className="btn-add-product" onClick={openAdd}>+ Add Product</button>
 //       </div>
 
+//       {/* Products Table */}
 //       <div className="admin-card">
 //         <div className="table-wrap">
 //           <table className="admin-table">
 //             <thead>
-//               <tr><th>ID</th><th>Image</th><th>Name</th><th>Price</th><th>Stock</th><th>Weight</th><th>Status</th><th>Actions</th></tr>
+//               <tr>
+//                 <th>ID</th><th>Image</th><th>Name</th><th>Price</th>
+//                 <th>Stock</th><th>Weight</th><th>Status</th><th>Actions</th>
+//               </tr>
 //             </thead>
 //             <tbody>
 //               {products.map(p => (
 //                 <tr key={p.id}>
 //                   <td>#{p.id}</td>
-//                   <td>
-//                     {p.image
-//                       ? <img src={p.image} alt={p.name} className="product-thumb" />
-//                       : <div className="product-thumb-placeholder">🌿</div>}
-//                   </td>
+//                   <td><ThumbCarousel images={parseImages(p.image)} /></td>
 //                   <td className="td-name">{p.name}</td>
 //                   <td className="td-price">₹{p.price}</td>
 //                   <td>{p.stock}</td>
@@ -92,17 +187,76 @@
 //                   </td>
 //                 </tr>
 //               ))}
+//               {products.length === 0 && (
+//                 <tr><td colSpan="8" style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+//                   No products yet. Add your first product!
+//                 </td></tr>
+//               )}
 //             </tbody>
 //           </table>
 //         </div>
 //       </div>
 
-//       {/* Modal */}
+//       {/* Add / Edit Modal */}
 //       {modal && (
 //         <div className="modal-backdrop" onClick={() => setModal(null)}>
 //           <div className="modal" onClick={e => e.stopPropagation()}>
 //             <h2>{modal === "add" ? "Add Product" : "Edit Product"}</h2>
 //             <form onSubmit={save} className="modal-form">
+
+//               {/* ── Multi-Image Upload Section ── */}
+//               <div className="form-group">
+//                 <label>
+//                   Product Images
+//                   <span className="optional"> — upload multiple, they will auto-slide</span>
+//                 </label>
+
+//                 {/* Previews of already-uploaded images */}
+//                 {form.images.length > 0 && (
+//                   <div className="multi-image-preview-wrap">
+//                     {form.images.map((img, i) => (
+//                       <div key={i} className="multi-image-item">
+//                         <img src={getImageSrc(img)} alt={`img-${i}`} className="multi-image-thumb" />
+//                         <button
+//                           type="button"
+//                           className="btn-remove-image"
+//                           onClick={() => removeImage(i)}
+//                           title="Remove"
+//                         >✕</button>
+//                         {i === 0 && <span className="img-badge-main">Main</span>}
+//                       </div>
+//                     ))}
+//                   </div>
+//                 )}
+
+//                 {/* Upload box */}
+//                 <div
+//                   className="image-upload-box"
+//                   onClick={() => !uploading && fileInputRef.current?.click()}
+//                 >
+//                   {uploading ? (
+//                     <><div className="spinner small"></div><span>Uploading…</span></>
+//                   ) : (
+//                     <>
+//                       <span className="upload-icon">📷</span>
+//                       <span>{form.images.length > 0 ? "Add More Images" : "Click to Upload Images"}</span>
+//                       <small>Select one or multiple — PNG, JPG, JPEG, WEBP</small>
+//                     </>
+//                   )}
+//                 </div>
+
+//                 {/* Hidden file input — multiple=true */}
+//                 <input
+//                   ref={fileInputRef}
+//                   type="file"
+//                   accept="image/png,image/jpg,image/jpeg,image/gif,image/webp"
+//                   multiple
+//                   onChange={handleImageUpload}
+//                   style={{ display: "none" }}
+//                 />
+//               </div>
+
+//               {/* ── Name & Price ── */}
 //               <div className="form-row">
 //                 <div className="form-group">
 //                   <label>Name</label>
@@ -113,6 +267,8 @@
 //                   <input name="price" type="number" value={form.price} onChange={handle} required />
 //                 </div>
 //               </div>
+
+//               {/* ── Weight & Stock ── */}
 //               <div className="form-row">
 //                 <div className="form-group">
 //                   <label>Weight</label>
@@ -123,17 +279,16 @@
 //                   <input name="stock" type="number" value={form.stock} onChange={handle} />
 //                 </div>
 //               </div>
-//               <div className="form-group">
-//                 <label>Image path <span className="optional">(e.g. /images/product.jpg)</span></label>
-//                 <input name="image" value={form.image} onChange={handle} placeholder="/images/product.jpg" />
-//               </div>
+
+//               {/* ── Description ── */}
 //               <div className="form-group">
 //                 <label>Description</label>
 //                 <textarea name="description" value={form.description} onChange={handle} rows={3} />
 //               </div>
+
 //               <div className="modal-actions">
 //                 <button type="button" className="btn-cancel" onClick={() => setModal(null)}>Cancel</button>
-//                 <button type="submit" className="btn-save" disabled={saving}>
+//                 <button type="submit" className="btn-save" disabled={saving || uploading}>
 //                   {saving ? "Saving…" : modal === "add" ? "Add Product" : "Save Changes"}
 //                 </button>
 //               </div>
@@ -151,183 +306,156 @@ import { useAuth } from "../../AuthContext";
 import "./Admin.css";
 
 const API_URL = "https://nature-mart-project.onrender.com";
-const EMPTY = { name: "", price: "", description: "", weight: "", stock: 100, image: "" };
+const EMPTY = {
+  name: "", description: "", stock: 100, images: [],
+  price_250g: "", price_500g: "", price_1kg: "",
+};
+
+const parseImages = (image) => {
+  if (!image) return [];
+  if (Array.isArray(image)) return image.filter(Boolean);
+  return image.split(",").map(s => s.trim()).filter(Boolean);
+};
+
+const getImageSrc = (image) => {
+  if (!image) return null;
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/")) return `${API_URL}${image}`;
+  return `${API_URL}/images/${image}`;
+};
+
+function ThumbCarousel({ images }) {
+  const [idx, setIdx] = useState(0);
+  if (!images.length) return <div className="product-thumb-placeholder">🌿</div>;
+  if (images.length === 1) return <img src={getImageSrc(images[0])} alt="" className="product-thumb" />;
+  return (
+    <div className="thumb-carousel">
+      <img src={getImageSrc(images[idx])} alt="" className="product-thumb" />
+      <div className="thumb-dots">
+        {images.map((_, i) => (
+          <span key={i} className={`thumb-dot ${i === idx ? "active" : ""}`} onClick={() => setIdx(i)} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminProducts() {
   const { authFetch } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [modal, setModal]       = useState(null); // null | "add" | "edit"
-  const [form, setForm]         = useState(EMPTY);
-  const [editId, setEditId]     = useState(null);
-  const [saving, setSaving]     = useState(false);
+  const [products, setProducts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [modal, setModal]         = useState(null);
+  const [form, setForm]           = useState(EMPTY);
+  const [editId, setEditId]       = useState(null);
+  const [saving, setSaving]       = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState("");
-  const fileInputRef = useRef(null);
+  const fileInputRef              = useRef(null);
 
-  // ─── Load products ──────────────────────────────────────────
   const load = () => {
     authFetch(`${API_URL}/api/admin/products`)
       .then(r => r.json())
       .then(d => { setProducts(d); setLoading(false); });
   };
-
   useEffect(() => { load(); }, []);
 
-  // ─── Form field change ──────────────────────────────────────
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  // ─── Open modals ────────────────────────────────────────────
-  const openAdd = () => {
-    setForm(EMPTY);
-    setEditId(null);
-    setImagePreview("");
-    setModal("add");
-  };
+  const openAdd = () => { setForm(EMPTY); setEditId(null); setModal("add"); };
 
   const openEdit = (p) => {
     setForm({
       name:        p.name,
-      price:       p.price,
       description: p.description,
-      weight:      p.weight || "",
       stock:       p.stock,
-      image:       p.image || "",
+      images:      parseImages(p.image),
       is_active:   p.is_active,
+      price_250g:  p.price_250g || "",
+      price_500g:  p.price_500g || "",
+      price_1kg:   p.price_1kg  || "",
     });
     setEditId(p.id);
-    // Show existing image as preview
-    setImagePreview(p.image ? (p.image.startsWith("http") ? p.image : `${API_URL}${p.image}`) : "");
     setModal("edit");
   };
 
-  // ─── Image upload ────────────────────────────────────────────
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Show local preview immediately
-    const localPreview = URL.createObjectURL(file);
-    setImagePreview(localPreview);
-
-    // Upload to backend
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append("image", file);
-
-    try {
-      // NOTE: Do NOT set Content-Type header — browser sets it automatically with correct boundary
-      const res = await authFetch(`${API_URL}/api/admin/products/upload-image`, {
-        method: "POST",
-        body:   formData,
-      });
-      const data = await res.json();
-      if (data.image_url) {
-        setForm(prev => ({ ...prev, image: data.image_url }));
-        setImagePreview(`${API_URL}${data.image_url}`);
-      } else {
-        alert("Image upload failed: " + (data.error || "Unknown error"));
-        setImagePreview("");
-      }
-    } catch (err) {
-      alert("Image upload failed. Please try again.");
-      setImagePreview("");
-    } finally {
-      setUploading(false);
+    const uploaded = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("image", file);
+      try {
+        const res  = await authFetch(`${API_URL}/api/admin/products/upload-image`, { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.image_url) uploaded.push(data.image_url);
+        else alert("One image failed: " + (data.error || "Unknown error"));
+      } catch { alert("Upload failed for one image. Please retry."); }
     }
-  };
-
-  const removeImage = () => {
-    setForm(prev => ({ ...prev, image: "" }));
-    setImagePreview("");
+    setForm(prev => ({ ...prev, images: [...prev.images, ...uploaded] }));
+    setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ─── Save product (add or edit) ──────────────────────────────
+  const removeImage = (idx) => setForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== idx) }));
+
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
-
-    const url    = modal === "add"
-      ? `${API_URL}/api/admin/products`
-      : `${API_URL}/api/admin/products/${editId}`;
+    const url    = modal === "add" ? `${API_URL}/api/admin/products` : `${API_URL}/api/admin/products/${editId}`;
     const method = modal === "add" ? "POST" : "PUT";
-
     await authFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        price: Number(form.price),
-        stock: Number(form.stock),
+        image:      form.images.join(","),
+        stock:      Number(form.stock),
+        price_250g: Number(form.price_250g) || 0,
+        price_500g: Number(form.price_500g) || 0,
+        price_1kg:  Number(form.price_1kg)  || 0,
       }),
     });
-
     setSaving(false);
     setModal(null);
     load();
   };
 
-  // ─── Delete product ──────────────────────────────────────────
   const remove = async (id) => {
     if (!window.confirm("Delete this product?")) return;
     await authFetch(`${API_URL}/api/admin/products/${id}`, { method: "DELETE" });
     load();
   };
 
-  // ─── Helpers ─────────────────────────────────────────────────
-  const getImageSrc = (image) => {
-    if (!image) return null;
-    return image.startsWith("http") ? image : `${API_URL}${image}`;
-  };
-
-  if (loading) return (
-    <div className="page-loader">
-      <div className="spinner"></div>
-      <p>Loading products…</p>
-    </div>
-  );
+  if (loading) return <div className="page-loader"><div className="spinner"></div><p>Loading products…</p></div>;
 
   return (
     <div className="admin-page">
       <div className="admin-header">
-        <div>
-          <h1>Products</h1>
-          <p>{products.length} items in store</p>
-        </div>
+        <div><h1>Products</h1><p>{products.length} items in store</p></div>
         <button className="btn-add-product" onClick={openAdd}>+ Add Product</button>
       </div>
 
-      {/* Products Table */}
       <div className="admin-card">
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Weight</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>ID</th><th>Image</th><th>Name</th>
+                <th>250g</th><th>500g</th><th>1kg</th>
+                <th>Stock</th><th>Status</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.map(p => (
                 <tr key={p.id}>
                   <td>#{p.id}</td>
-                  <td>
-                    {getImageSrc(p.image)
-                      ? <img src={getImageSrc(p.image)} alt={p.name} className="product-thumb" />
-                      : <div className="product-thumb-placeholder">🌿</div>
-                    }
-                  </td>
+                  <td><ThumbCarousel images={parseImages(p.image)} /></td>
                   <td className="td-name">{p.name}</td>
-                  <td className="td-price">₹{p.price}</td>
+                  <td className="td-price">{p.price_250g ? `₹${p.price_250g}` : "—"}</td>
+                  <td className="td-price">{p.price_500g ? `₹${p.price_500g}` : "—"}</td>
+                  <td className="td-price">{p.price_1kg  ? `₹${p.price_1kg}`  : "—"}</td>
                   <td>{p.stock}</td>
-                  <td>{p.weight || "—"}</td>
                   <td>
                     <span className={`status-badge ${p.is_active ? "status-active" : "status-inactive"}`}>
                       {p.is_active ? "Active" : "Hidden"}
@@ -340,102 +468,69 @@ export default function AdminProducts() {
                 </tr>
               ))}
               {products.length === 0 && (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "40px", color: "#888" }}>
-                    No products yet. Add your first product!
-                  </td>
-                </tr>
+                <tr><td colSpan="9" style={{ textAlign: "center", padding: "40px", color: "#888" }}>No products yet.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
       {modal && (
         <div className="modal-backdrop" onClick={() => setModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>{modal === "add" ? "Add Product" : "Edit Product"}</h2>
-
             <form onSubmit={save} className="modal-form">
 
-              {/* ── Image Upload Section ── */}
+              {/* ── Images ── */}
               <div className="form-group">
-                <label>Product Image</label>
-
-                {/* Preview */}
-                {imagePreview ? (
-                  <div className="image-preview-wrap">
-                    <img src={imagePreview} alt="Preview" className="image-preview" />
-                    <button
-                      type="button"
-                      className="btn-remove-image"
-                      onClick={removeImage}
-                      title="Remove image"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  /* Upload Box — click to open file picker */
-                  <div
-                    className="image-upload-box"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {uploading ? (
-                      <>
-                        <div className="spinner small"></div>
-                        <span>Uploading…</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="upload-icon">📷</span>
-                        <span>Click to upload image</span>
-                        <small>PNG, JPG, JPEG, GIF, WEBP</small>
-                      </>
-                    )}
+                <label>Product Images <span className="optional">— upload multiple, they will auto-slide</span></label>
+                {form.images.length > 0 && (
+                  <div className="multi-image-preview-wrap">
+                    {form.images.map((img, i) => (
+                      <div key={i} className="multi-image-item">
+                        <img src={getImageSrc(img)} alt={`img-${i}`} className="multi-image-thumb" />
+                        <button type="button" className="btn-remove-image" onClick={() => removeImage(i)}>✕</button>
+                        {i === 0 && <span className="img-badge-main">Main</span>}
+                      </div>
+                    ))}
                   </div>
                 )}
-
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png, image/jpg, image/jpeg, image/gif, image/webp"
-                  onChange={handleImageUpload}
-                  style={{ display: "none" }}
-                />
-
-                {/* Show upload button again if image already set but user wants to change */}
-                {imagePreview && !uploading && (
-                  <button
-                    type="button"
-                    className="btn-change-image"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Change Image
-                  </button>
-                )}
+                <div className="image-upload-box" onClick={() => !uploading && fileInputRef.current?.click()}>
+                  {uploading
+                    ? <><div className="spinner small"></div><span>Uploading…</span></>
+                    : <><span className="upload-icon">📷</span><span>{form.images.length > 0 ? "Add More Images" : "Click to Upload Images"}</span><small>PNG, JPG, JPEG, WEBP</small></>
+                  }
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpg,image/jpeg,image/gif,image/webp" multiple onChange={handleImageUpload} style={{ display: "none" }} />
               </div>
 
-              {/* ── Name & Price ── */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Name</label>
-                  <input name="name" value={form.name} onChange={handle} required />
-                </div>
-                <div className="form-group">
-                  <label>Price (₹)</label>
-                  <input name="price" type="number" value={form.price} onChange={handle} required />
+              {/* ── Name ── */}
+              <div className="form-group">
+                <label>Product Name</label>
+                <input name="name" value={form.name} onChange={handle} required />
+              </div>
+
+              {/* ── 3 Prices ── */}
+              <div className="form-group">
+                <label>Prices by Weight <span className="optional">(leave 0 to hide that option)</span></label>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="sub-label">250g Price (₹)</label>
+                    <input name="price_250g" type="number" value={form.price_250g} onChange={handle} placeholder="e.g. 120" />
+                  </div>
+                  <div className="form-group">
+                    <label className="sub-label">500g Price (₹)</label>
+                    <input name="price_500g" type="number" value={form.price_500g} onChange={handle} placeholder="e.g. 220" />
+                  </div>
+                  <div className="form-group">
+                    <label className="sub-label">1kg Price (₹)</label>
+                    <input name="price_1kg" type="number" value={form.price_1kg} onChange={handle} placeholder="e.g. 400" />
+                  </div>
                 </div>
               </div>
 
-              {/* ── Weight & Stock ── */}
+              {/* ── Stock ── */}
               <div className="form-row">
-                <div className="form-group">
-                  <label>Weight</label>
-                  <input name="weight" value={form.weight} onChange={handle} placeholder="e.g. 250g" />
-                </div>
                 <div className="form-group">
                   <label>Stock</label>
                   <input name="stock" type="number" value={form.stock} onChange={handle} />
@@ -448,16 +543,12 @@ export default function AdminProducts() {
                 <textarea name="description" value={form.description} onChange={handle} rows={3} />
               </div>
 
-              {/* ── Actions ── */}
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setModal(null)}>
-                  Cancel
-                </button>
+                <button type="button" className="btn-cancel" onClick={() => setModal(null)}>Cancel</button>
                 <button type="submit" className="btn-save" disabled={saving || uploading}>
                   {saving ? "Saving…" : modal === "add" ? "Add Product" : "Save Changes"}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
