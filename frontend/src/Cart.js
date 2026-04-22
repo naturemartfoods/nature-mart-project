@@ -1,3 +1,5 @@
+
+
 // import React, { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
 // import { useAuth } from "./AuthContext";
@@ -11,7 +13,7 @@
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState("");
 
-//   // ✅ Helper to safely get product id from item
+//   // ✅ Use product_id — same as original working code
 //   const getProductId = (item) => item.product_id ?? item.id;
 
 //   useEffect(() => {
@@ -56,8 +58,8 @@
 //     }
 //   };
 
+//   // ✅ Original working logic — uses product_id
 //   const updateQty = async (productId, newQty) => {
-//     // ✅ Guard against undefined
 //     if (!productId) {
 //       console.error("❌ productId is undefined!");
 //       return;
@@ -65,9 +67,7 @@
 
 //     if (newQty < 1) return removeItem(productId);
 
-//     const currentItem = cartItems.find(
-//       (i) => getProductId(i) === productId
-//     );
+//     const currentItem = cartItems.find((i) => getProductId(i) === productId);
 //     if (!currentItem) return;
 
 //     const isIncreasing = newQty > currentItem.quantity;
@@ -77,16 +77,8 @@
 
 //     try {
 //       const res = await authFetch(endpoint, { method: "PUT" });
-
-//       if (res.status === 401) {
-//         navigate("/login");
-//         return;
-//       }
-
-//       if (!res.ok) {
-//         console.error("Update qty failed:", res.status);
-//         return;
-//       }
+//       if (res.status === 401) { navigate("/login"); return; }
+//       if (!res.ok) { console.error("Update qty failed:", res.status); return; }
 //       await fetchCart();
 //       if (updateCartCount) updateCartCount();
 //     } catch (err) {
@@ -94,8 +86,8 @@
 //     }
 //   };
 
+//   // ✅ Original working logic — uses product_id
 //   const removeItem = async (productId) => {
-//     // ✅ Guard against undefined
 //     if (!productId) {
 //       console.error("❌ productId is undefined!");
 //       return;
@@ -106,16 +98,8 @@
 //         `${config.API_URL}/api/cart/remove/${productId}`,
 //         { method: "DELETE" }
 //       );
-
-//       if (res.status === 401) {
-//         navigate("/login");
-//         return;
-//       }
-
-//       if (!res.ok) {
-//         console.error("Remove item failed:", res.status);
-//         return;
-//       }
+//       if (res.status === 401) { navigate("/login"); return; }
+//       if (!res.ok) { console.error("Remove item failed:", res.status); return; }
 //       await fetchCart();
 //       if (updateCartCount) updateCartCount();
 //     } catch (err) {
@@ -165,28 +149,31 @@
 //         <div className="nm-cart-layout">
 //           <div className="nm-cart-items">
 //             {cartItems.map((item) => {
-//               const pid = getProductId(item); // ✅ safe product id
+//               const pid = getProductId(item);
 //               return (
-//                 <div className="nm-cart-card" key={pid}>
+//                 <div className="nm-cart-card" key={`${pid}-${item.weight}`}>
 //                   <img
 //                     src={
-//                         item.image
-//                           ? item.image.startsWith("http")
-//                             ? item.image        // ✅ full URL from backend — use as-is
-//                             : `${config.API_URL}/images/${item.image}`  // fallback
-//                           : "/placeholder.png"
-//                       }
+//                       item.image
+//                         ? item.image.startsWith("http")
+//                           ? item.image
+//                           : `${config.API_URL}/images/${item.image}`
+//                         : "/placeholder.png"
+//                     }
 //                     alt={item.name}
 //                     className="nm-cart-img"
 //                     onError={(e) => (e.target.src = "/placeholder.png")}
 //                   />
 //                   <div className="nm-cart-info">
 //                     <h3>{item.name}</h3>
+//                     {/* ✅ Show weight badge */}
+//                     {item.weight && (
+//                       <span className="nm-weight-badge">{item.weight}</span>
+//                     )}
 //                     <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
 //                   </div>
 //                   <div className="nm-cart-actions">
 //                     <div className="nm-qty-control">
-//                       {/* ✅ Use pid — never undefined */}
 //                       <button onClick={() => updateQty(pid, item.quantity - 1)}>−</button>
 //                       <span>{item.quantity}</span>
 //                       <button onClick={() => updateQty(pid, item.quantity + 1)}>+</button>
@@ -243,6 +230,7 @@
 //   );
 // }
 
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
@@ -256,14 +244,8 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ Use product_id — same as original working code
-  const getProductId = (item) => item.product_id ?? item.id;
-
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+    if (!user) { navigate("/login"); return; }
     fetchCart();
   }, [user]);
 
@@ -271,52 +253,35 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     setError("");
     try {
       const res = await authFetch(`${config.API_URL}/api/cart`);
-
-      if (res.status === 401) {
-        navigate("/login");
-        return;
-      }
-
+      if (res.status === 401) { navigate("/login"); return; }
       if (!res.ok) {
         let errMsg = `Error ${res.status}`;
-        try {
-          const errData = await res.json();
-          errMsg = errData.error || errMsg;
-        } catch {}
+        try { const d = await res.json(); errMsg = d.error || errMsg; } catch {}
         setError(`Failed to load cart: ${errMsg}`);
         setLoading(false);
         return;
       }
-
       const data = await res.json();
-      console.log("✅ Cart data received:", data);
-
+      console.log("✅ Cart data:", data);
       const items = data.items || data || [];
       setCartItems(Array.isArray(items) ? items : []);
     } catch (err) {
-      console.error("Cart fetch exception:", err);
+      console.error("Cart fetch error:", err);
       setError("Failed to load cart. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Original working logic — uses product_id
-  const updateQty = async (productId, newQty) => {
-    if (!productId) {
-      console.error("❌ productId is undefined!");
-      return;
-    }
+  // ✅ Uses cart_id — each weight row updated independently
+  const updateQty = async (cartId, newQty, currentQty) => {
+    if (!cartId) { console.error("❌ cartId undefined"); return; }
+    if (newQty < 1) return removeItem(cartId);
 
-    if (newQty < 1) return removeItem(productId);
-
-    const currentItem = cartItems.find((i) => getProductId(i) === productId);
-    if (!currentItem) return;
-
-    const isIncreasing = newQty > currentItem.quantity;
+    const isIncreasing = newQty > currentQty;
     const endpoint = isIncreasing
-      ? `${config.API_URL}/api/cart/increase/${productId}`
-      : `${config.API_URL}/api/cart/decrease/${productId}`;
+      ? `${config.API_URL}/api/cart/increase/${cartId}`
+      : `${config.API_URL}/api/cart/decrease/${cartId}`;
 
     try {
       const res = await authFetch(endpoint, { method: "PUT" });
@@ -329,24 +294,20 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
     }
   };
 
-  // ✅ Original working logic — uses product_id
-  const removeItem = async (productId) => {
-    if (!productId) {
-      console.error("❌ productId is undefined!");
-      return;
-    }
-
+  // ✅ Uses cart_id — deletes only that specific weight row
+  const removeItem = async (cartId) => {
+    if (!cartId) { console.error("❌ cartId undefined"); return; }
     try {
       const res = await authFetch(
-        `${config.API_URL}/api/cart/remove/${productId}`,
+        `${config.API_URL}/api/cart/remove/${cartId}`,
         { method: "DELETE" }
       );
       if (res.status === 401) { navigate("/login"); return; }
-      if (!res.ok) { console.error("Remove item failed:", res.status); return; }
+      if (!res.ok) { console.error("Remove failed:", res.status); return; }
       await fetchCart();
       if (updateCartCount) updateCartCount();
     } catch (err) {
-      console.error("Remove item error:", err);
+      console.error("Remove error:", err);
     }
   };
 
@@ -373,9 +334,7 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
       {error && (
         <div className="nm-error" style={{ padding: "12px", marginBottom: "16px" }}>
           ⚠️ {error}
-          <button onClick={fetchCart} style={{ marginLeft: "12px", cursor: "pointer" }}>
-            Retry
-          </button>
+          <button onClick={fetchCart} style={{ marginLeft: "12px", cursor: "pointer" }}>Retry</button>
         </div>
       )}
 
@@ -384,87 +343,64 @@ export default function Cart({ onOrderPlaced, updateCartCount }) {
           <div className="nm-empty-icon">🌿</div>
           <h2>Your cart is empty</h2>
           <p>Explore our natural products and add something you love!</p>
-          <button className="nm-btn-primary" onClick={() => navigate("/")}>
-            Shop Now
-          </button>
+          <button className="nm-btn-primary" onClick={() => navigate("/")}>Shop Now</button>
         </div>
       ) : (
         <div className="nm-cart-layout">
           <div className="nm-cart-items">
-            {cartItems.map((item) => {
-              const pid = getProductId(item);
-              return (
-                <div className="nm-cart-card" key={`${pid}-${item.weight}`}>
-                  <img
-                    src={
-                      item.image
-                        ? item.image.startsWith("http")
-                          ? item.image
-                          : `${config.API_URL}/images/${item.image}`
-                        : "/placeholder.png"
-                    }
-                    alt={item.name}
-                    className="nm-cart-img"
-                    onError={(e) => (e.target.src = "/placeholder.png")}
-                  />
-                  <div className="nm-cart-info">
-                    <h3>{item.name}</h3>
-                    {/* ✅ Show weight badge */}
-                    {item.weight && (
-                      <span className="nm-weight-badge">{item.weight}</span>
-                    )}
-                    <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
-                  </div>
-                  <div className="nm-cart-actions">
-                    <div className="nm-qty-control">
-                      <button onClick={() => updateQty(pid, item.quantity - 1)}>−</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQty(pid, item.quantity + 1)}>+</button>
-                    </div>
-                    <p className="nm-item-total">
-                      ₹{(item.price * item.quantity).toFixed(2)}
-                    </p>
-                    <button
-                      className="nm-remove-btn"
-                      onClick={() => removeItem(pid)}
-                    >
-                      🗑
-                    </button>
-                  </div>
+            {cartItems.map((item) => (
+              // ✅ key uses cart_id — unique per product+weight row
+              <div className="nm-cart-card" key={item.cart_id}>
+                <img
+                  src={
+                    item.image
+                      ? item.image.startsWith("http")
+                        ? item.image
+                        : `${config.API_URL}/images/${item.image}`
+                      : "/placeholder.png"
+                  }
+                  alt={item.name}
+                  className="nm-cart-img"
+                  onError={(e) => (e.target.src = "/placeholder.png")}
+                />
+                <div className="nm-cart-info">
+                  <h3>{item.name}</h3>
+                  {item.weight && (
+                    <span className="nm-weight-badge">{item.weight}</span>
+                  )}
+                  <p className="nm-cart-price">₹{Number(item.price).toFixed(2)}</p>
                 </div>
-              );
-            })}
+                <div className="nm-cart-actions">
+                  <div className="nm-qty-control">
+                    {/* ✅ Pass cart_id and current quantity */}
+                    <button onClick={() => updateQty(item.cart_id, item.quantity - 1, item.quantity)}>−</button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => updateQty(item.cart_id, item.quantity + 1, item.quantity)}>+</button>
+                  </div>
+                  <p className="nm-item-total">₹{(item.price * item.quantity).toFixed(2)}</p>
+                  <button className="nm-remove-btn" onClick={() => removeItem(item.cart_id)}>🗑</button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="nm-cart-summary">
             <h2>Order Summary</h2>
             <div className="nm-summary-row">
-              <span>Subtotal</span>
-              <span>₹{subtotal.toFixed(2)}</span>
+              <span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="nm-summary-row">
               <span>Shipping</span>
-              <span>
-                {shipping === 0 ? (
-                  <span className="nm-free">FREE</span>
-                ) : (
-                  `₹${shipping}`
-                )}
-              </span>
+              <span>{shipping === 0 ? <span className="nm-free">FREE</span> : `₹${shipping}`}</span>
             </div>
             {shipping > 0 && (
-              <p className="nm-free-ship-note">
-                Add ₹{(499 - subtotal).toFixed(2)} more for free shipping
-              </p>
+              <p className="nm-free-ship-note">Add ₹{(499 - subtotal).toFixed(2)} more for free shipping</p>
             )}
             <div className="nm-summary-divider" />
             <div className="nm-summary-row nm-summary-total">
-              <span>Total</span>
-              <span>₹{total.toFixed(2)}</span>
+              <span>Total</span><span>₹{total.toFixed(2)}</span>
             </div>
-            <button className="nm-place-order-btn" onClick={handlePlaceOrder}>
-              Place Order →
-            </button>
+            <button className="nm-place-order-btn" onClick={handlePlaceOrder}>Place Order →</button>
             <p className="nm-secure-note">🔒 Secure Checkout</p>
           </div>
         </div>
