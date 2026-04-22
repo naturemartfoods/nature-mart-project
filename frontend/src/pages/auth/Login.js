@@ -37,10 +37,10 @@ const API_URL = "https://nature-mart-project.onrender.com";
     <div className="auth-page">
       <div className="auth-left">
         <div className="auth-brand">
-          <span className="auth-leaf">🌿</span>
-          <span>Nature Mart</span>
+          <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart Foods" className="auth-logo-img" />
+          <span>Nature Mart Foods</span>
         </div>
-        <h1 className="auth-tagline">Pure &amp; organic,<br />delivered to you.</h1>
+        <h1 className="auth-tagline">Pure &amp; natural,<br />delivered to you.</h1>
         <p className="auth-sub">Sign in to your account to continue shopping.</p>
         <div className="auth-decor"></div>
       </div>

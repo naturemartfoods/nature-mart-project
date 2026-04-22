@@ -403,7 +403,7 @@ function AppContent() {
               <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart" className="footer-logo-img" />
               <span className="footer-brand-name">Nature Mart Foods</span>
             </div>
-            <p className="footer-tagline">Pure · Organic · Natural superfoods delivered straight to your door.</p>
+            <p className="footer-tagline">Pure · Healthy · Natural superfoods delivered straight to your door.</p>
             <div className="footer-badges">
               <div className="footer-badge">
                 <span className="badge-icon">✅</span>

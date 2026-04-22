@@ -43,7 +43,7 @@ const API_URL = "https://nature-mart-project.onrender.com";
           <span>Nature Mart</span>
         </div>
         <h1 className="auth-tagline">Join the natural<br />living community.</h1>
-        <p className="auth-sub">Create your account and start shopping organic superfoods.</p>
+        <p className="auth-sub">Create your account and start shopping fresh & natural superfoods.</p>
         <div className="auth-decor"></div>
       </div>
 

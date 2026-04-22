@@ -14,7 +14,7 @@ export default function ShippingPolicy() {
 
         <div className="policy-content">
           <div className="policy-highlight">
-            <strong>🌍 We deliver across India!</strong> Fresh organic products packed carefully and delivered to your doorstep.
+            <strong>🌍 We deliver across India!</strong> Fresh natural products packed carefully and delivered to your doorstep.
           </div>
 
           <section>

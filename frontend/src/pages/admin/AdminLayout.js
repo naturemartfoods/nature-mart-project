@@ -19,7 +19,8 @@ export default function AdminLayout() {
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
-          <span>🌿</span> Nature Mart
+          <img src="https://nature-mart-project.onrender.com/images/logo.jpg" alt="Nature Mart Foods" className="sidebar-logo-img" />
+          <span>Nature Mart Foods</span>
           <span className="sidebar-badge">Admin</span>
         </div>
 
