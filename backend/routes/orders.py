@@ -64,7 +64,7 @@ def place_order():
 
             # ── Fetch live price & stock (never trust client price) ───────────
             cur.execute(
-                "SELECT price, stock FROM products WHERE id = %s AND is_active = 1",
+                "SELECT price_250g, price_500g, price_1kg, stock FROM products WHERE id = %s AND is_active = 1",
                 (product_id,)
             )
             product = cur.fetchone()
@@ -74,8 +74,10 @@ def place_order():
                 conn.close()
                 return jsonify({"error": f"Product {product_id} not found or unavailable"}), 400
 
-            price = float(product[0])
-            stock = product[1]
+            weight = item.get("weight", "250g")
+            price_map = {"250g": product[0], "500g": product[1], "1kg": product[2]}
+            price = float(price_map.get(weight) or product[0] or 0)
+            stock = product[3]
 
             if stock < quantity:
                 conn.rollback()

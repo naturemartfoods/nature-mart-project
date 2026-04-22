@@ -134,7 +134,7 @@ export default function Checkout() {
   const normalisedItems = cartItems.map((item) => ({
     product_id: item.product_id ?? item.id,
     quantity:   item.quantity,
-    // price is intentionally NOT sent — backend fetches live price from DB
+    weight:     item.weight || "250g",
   }));
 
   // ── Core place-order call ─────────────────────────────────────────────────
