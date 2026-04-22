@@ -65,8 +65,8 @@ function NavBar({ cartCount }) {
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand" onClick={closeMenu}>
-        <span className="brand-leaf">🌿</span>
-        <span className="brand-name">Nature Mart</span>
+        <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart" className="brand-logo-img" />
+        <span className="brand-name">Nature Mart Foods</span>
       </Link>
 
       <div className="navbar-links">
@@ -400,8 +400,8 @@ function AppContent() {
         <div className="footer-main">
           <div className="footer-brand-col">
             <div className="footer-brand">
-              <span className="footer-leaf">🌿</span>
-              <span className="footer-brand-name">Nature Mart</span>
+              <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart" className="footer-logo-img" />
+              <span className="footer-brand-name">Nature Mart Foods</span>
             </div>
             <p className="footer-tagline">Pure · Organic · Natural superfoods delivered straight to your door.</p>
             <div className="footer-badges">
@@ -443,7 +443,7 @@ function AppContent() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} Nature Mart. All rights reserved. | Proprietor: Gavli Ashvinkumar Shyamrao</p>
+          <p>© {new Date().getFullYear()} Nature Mart Foods. All rights reserved. | Proprietor: Gavli Ashvinkumar Shyamrao</p>
           <div className="footer-trust">
             <span>🔒 Secure Payments</span>
             <span>🌿 No additives. No preservatives.</span>
