@@ -1,15 +1,21 @@
 
-
 # import os
-# import uuid
+# import cloudinary
+# import cloudinary.uploader
 # from flask import Blueprint, request, jsonify
 # from routes.auth import admin_required
 # from models import connect_db
 
+# cloudinary.config(
+#     cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"),
+#     api_key    = os.environ.get("CLOUDINARY_API_KEY"),
+#     api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
+# )
+
 # admin_bp = Blueprint('admin', __name__)
 
 
-# # ─── Dashboard Stats ─────────────────────────────────────────
+# # ─── Dashboard Stats ──────────────────────────────────────────
 
 # @admin_bp.route('/admin/dashboard', methods=['GET'])
 # @admin_required
@@ -145,7 +151,7 @@
 #     return jsonify({"message": "Order status updated"})
 
 
-# # ─── Upload Product Image ──────────────────────────────────────
+# # ─── Upload Product Image (Cloudinary) ────────────────────────
 
 # @admin_bp.route('/admin/products/upload-image', methods=['POST'])
 # @admin_required
@@ -155,19 +161,8 @@
 #     file = request.files['image']
 #     if file.filename == '':
 #         return jsonify({"error": "No file selected"}), 400
-#     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-#     ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-#     if ext not in allowed_extensions:
-#         return jsonify({"error": "Invalid file type. Allowed: png, jpg, jpeg, gif, webp"}), 400
-#     filename  = f"{uuid.uuid4().hex}.{ext}"
-#     # BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-#     # images_dir = os.path.join(BASE_DIR, '..', 'images')
-#     BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-#     images_dir = os.path.join(BASE_DIR, 'images')
-
-#     os.makedirs(images_dir, exist_ok=True)
-#     file.save(os.path.join(images_dir, filename))
-#     return jsonify({"image_url": f"/images/{filename}"}), 201
+#     result = cloudinary.uploader.upload(file, folder="nature_mart")
+#     return jsonify({"image_url": result["secure_url"]}), 201
 
 
 # # ─── Product CRUD ─────────────────────────────────────────────
@@ -207,7 +202,7 @@
 #         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
 #     """, (
 #         data.get("name"),
-#         data.get("price_250g") or data.get("price", 0),   # fallback: use 250g price as default price
+#         data.get("price_250g") or data.get("price", 0),
 #         data.get("description"),
 #         data.get("image", ""),
 #         data.get("stock", 100),
@@ -260,7 +255,6 @@
 #     conn.commit()
 #     conn.close()
 #     return jsonify({"message": "Product deleted"})
-
 
 import os
 import cloudinary
@@ -424,8 +418,13 @@ def upload_image():
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
-    result = cloudinary.uploader.upload(file, folder="nature_mart")
-    return jsonify({"image_url": result["secure_url"]}), 201
+    try:
+        result = cloudinary.uploader.upload(file, folder="nature_mart")
+        print("✅ Cloudinary upload success:", result["secure_url"])
+        return jsonify({"image_url": result["secure_url"]}), 201
+    except Exception as e:
+        print("❌ Cloudinary upload error:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 # ─── Product CRUD ─────────────────────────────────────────────
