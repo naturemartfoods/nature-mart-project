@@ -1,5 +1,6 @@
 
 
+
 // import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
 // import { useEffect, useState } from "react";
 // import { useAuth } from "./AuthContext";
@@ -24,7 +25,6 @@
 
 // const API_URL = "https://nature-mart-project.onrender.com";
 
-// // ── Image helpers ─────────────────────────────────────────────
 // const parseImages = (image) => {
 //   if (!image) return [];
 //   if (Array.isArray(image)) return image.filter(Boolean);
@@ -38,7 +38,6 @@
 //   return `${API_URL}/images/${image}`;
 // };
 
-// // ── Protected route wrappers ─────────────────────────────────
 // function RequireAuth({ children }) {
 //   const { user, loading } = useAuth();
 //   if (loading) return null;
@@ -53,7 +52,6 @@
 //   return children;
 // }
 
-// // ── Navbar ───────────────────────────────────────────────────
 // function NavBar({ cartCount }) {
 //   const { user, logout } = useAuth();
 //   const location = useLocation();
@@ -142,7 +140,6 @@
 //   );
 // }
 
-// // ── Image Carousel ────────────────────────────────────────────
 // function ImageCarousel({ images, alt }) {
 //   const [current, setCurrent] = useState(0);
 
@@ -201,8 +198,6 @@
 //   );
 // }
 
-
-// // ── Product card ─────────────────────────────────────────────
 // function ProductCard({ product, onAddToCart, added }) {
 //   const { user } = useAuth();
 //   const navigate = useNavigate();
@@ -238,7 +233,6 @@
 //         <h2 className="card-name">{product.name}</h2>
 //         <p className="card-desc">{product.description}</p>
 
-//         {/* ── Weight selector ── */}
 //         {weightOptions.length > 0 && (
 //           <div className="weight-selector">
 //             {weightOptions.map(opt => (
@@ -277,7 +271,6 @@
 //   );
 // }
 
-// // ── Home page ────────────────────────────────────────────────
 // function Home({ products, onAddToCart, addedIds }) {
 //   return (
 //     <main>
@@ -335,20 +328,25 @@
 //   );
 // }
 
-// // ── App content ───────────────────────────────────────────────
 // function AppContent() {
 //   const { user, authFetch, loading } = useAuth();
 //   const [products, setProducts]   = useState([]);
 //   const [addedIds, setAddedIds]   = useState([]);
 //   const [cartCount, setCartCount] = useState(0);
 
+//   // ← FIXED: counts total quantity across all items
 //   const fetchCartCount = async () => {
 //     if (!user) { setCartCount(0); return; }
 //     try {
 //       const res = await authFetch(`${API_URL}/api/cart`);
 //       if (!res.ok) return;
 //       const data = await res.json();
-//       setCartCount(data.items?.length || 0);
+//       const items = data.items || data || [];
+//       setCartCount(
+//         Array.isArray(items)
+//           ? items.reduce((sum, i) => sum + (i.quantity || 1), 0)
+//           : 0
+//       );
 //     } catch (err) { console.error("Cart count error:", err); }
 //   };
 
@@ -414,7 +412,7 @@
 //               <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart Foods" className="footer-logo-img" />
 //               <span className="footer-brand-name">Nature Mart Foods</span>
 //             </div>
-//             <p className="footer-tagline">Pure · Natural · Healthy  superfoods delivered straight to your door.</p>
+//             <p className="footer-tagline">Pure · Natural · Healthy superfoods delivered straight to your door.</p>
 //             <div className="footer-badges">
 //               <div className="footer-badge">
 //                 <span className="badge-icon">✅</span>
@@ -505,11 +503,13 @@ const parseImages = (image) => {
   return image.split(",").map(s => s.trim()).filter(Boolean);
 };
 
+// ✅ FIX: returns null for garbage values like "img-1", "img-2"
 const getImageSrc = (image) => {
   if (!image) return null;
-  if (image.startsWith("http")) return image;
-  if (image.startsWith("/")) return `${API_URL}${image}`;
-  return `${API_URL}/images/${image}`;
+  if (image.startsWith("http")) return image;               // Cloudinary URLs
+  if (image.startsWith("/")) return `${API_URL}${image}`;   // /images/...
+  if (image.includes(".")) return `${API_URL}/images/${image}`; // bare filename like abc.jpg
+  return null; // garbage like "img-1", "img-2" → show placeholder instead
 };
 
 function RequireAuth({ children }) {
@@ -617,15 +617,18 @@ function NavBar({ cartCount }) {
 function ImageCarousel({ images, alt }) {
   const [current, setCurrent] = useState(0);
 
+  // ✅ FIX: filter out broken/garbage image paths before rendering
+  const validImages = images.filter(img => getImageSrc(img) !== null);
+
   useEffect(() => {
-    if (images.length <= 1) return;
+    if (validImages.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrent(prev => (prev + 1) % images.length);
+      setCurrent(prev => (prev + 1) % validImages.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [images.length]);
+  }, [validImages.length]);
 
-  if (!images.length) {
+  if (!validImages.length) {
     return (
       <div className="card-img-wrap">
         <div className="card-img-placeholder">🌿</div>
@@ -634,10 +637,15 @@ function ImageCarousel({ images, alt }) {
     );
   }
 
-  if (images.length === 1) {
+  if (validImages.length === 1) {
     return (
       <div className="card-img-wrap">
-        <img src={getImageSrc(images[0])} alt={alt} />
+        {/* ✅ FIX: onError hides broken img tag gracefully */}
+        <img
+          src={getImageSrc(validImages[0])}
+          alt={alt}
+          onError={(e) => { e.target.style.display = "none"; }}
+        />
         <div className="card-img-overlay"><span className="tag-natural">🌿 Natural</span></div>
       </div>
     );
@@ -645,22 +653,23 @@ function ImageCarousel({ images, alt }) {
 
   return (
     <div className="card-img-wrap carousel-wrap">
-      {images.map((img, i) => (
+      {validImages.map((img, i) => (
         <img
           key={i}
           src={getImageSrc(img)}
           alt={`${alt} ${i + 1}`}
           className={`carousel-slide ${i === current ? "carousel-active" : ""}`}
+          onError={(e) => { e.target.style.display = "none"; }}
         />
       ))}
       <button className="carousel-btn carousel-prev"
-        onClick={(e) => { e.stopPropagation(); setCurrent(prev => (prev - 1 + images.length) % images.length); }}
+        onClick={(e) => { e.stopPropagation(); setCurrent(prev => (prev - 1 + validImages.length) % validImages.length); }}
       >&#8249;</button>
       <button className="carousel-btn carousel-next"
-        onClick={(e) => { e.stopPropagation(); setCurrent(prev => (prev + 1) % images.length); }}
+        onClick={(e) => { e.stopPropagation(); setCurrent(prev => (prev + 1) % validImages.length); }}
       >&#8250;</button>
       <div className="carousel-dots">
-        {images.map((_, i) => (
+        {validImages.map((_, i) => (
           <span key={i}
             className={`carousel-dot ${i === current ? "carousel-dot-active" : ""}`}
             onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
@@ -808,7 +817,6 @@ function AppContent() {
   const [addedIds, setAddedIds]   = useState([]);
   const [cartCount, setCartCount] = useState(0);
 
-  // ← FIXED: counts total quantity across all items
   const fetchCartCount = async () => {
     if (!user) { setCartCount(0); return; }
     try {
