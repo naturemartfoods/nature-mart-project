@@ -5,3 +5,4 @@ PyJWT
 werkzeug
 gunicorn
 python-dotenv
+cloudinary

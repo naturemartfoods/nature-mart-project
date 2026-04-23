@@ -89,6 +89,35 @@ def create_tables():
     )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            price       INTEGER NOT NULL,
+            description TEXT,
+            image       TEXT,
+            stock       INTEGER DEFAULT 100,
+            weight      TEXT,
+            is_active   INTEGER DEFAULT 1,
+            price_250g  INTEGER DEFAULT 0,
+            price_500g  INTEGER DEFAULT 0,
+            price_1kg   INTEGER DEFAULT 0
+        )
+        """)
+
+    # Also add migration for existing DB:
+    for col, definition in [
+        ("price_250g", "INTEGER DEFAULT 0"),
+        ("price_500g", "INTEGER DEFAULT 0"),
+        ("price_1kg",  "INTEGER DEFAULT 0"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE products ADD COLUMN IF NOT EXISTS {col} {definition}")
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"[products migration] {col}: {e}")
+
     for col, definition in [
         ("order_id",       "TEXT"),
         ("name",           "TEXT"),
