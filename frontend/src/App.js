@@ -1,5 +1,6 @@
 
-// import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+
+// import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
 // import { useEffect, useState } from "react";
 // import { useAuth } from "./AuthContext";
 // import Cart from "./Cart";
@@ -17,8 +18,7 @@
 // import TermsConditions from "./pages/TermsConditions";
 // import RefundPolicy    from "./pages/RefundPolicy";
 // import ShippingPolicy  from "./pages/ShippingPolicy";
-// import ProductDetail from "./ProductDetail";
-
+// import ProductDetail   from "./ProductDetail";
 
 // import "./App.css";
 
@@ -67,7 +67,7 @@
 //   return (
 //     <nav className="navbar">
 //       <Link to="/" className="navbar-brand" onClick={closeMenu}>
-//         <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart" className="brand-logo-img" />
+//         <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart Foods" className="brand-logo-img" />
 //         <span className="brand-name">Nature Mart Foods</span>
 //       </Link>
 
@@ -201,22 +201,21 @@
 //   );
 // }
 
+
 // // ── Product card ─────────────────────────────────────────────
 // function ProductCard({ product, onAddToCart, added }) {
 //   const { user } = useAuth();
+//   const navigate = useNavigate();
 //   const images = parseImages(product.image);
 
-//   // Build available weight options — only show options where price > 0
 //   const weightOptions = [
 //     { label: "250g", price: product.price_250g },
 //     { label: "500g", price: product.price_500g },
 //     { label: "1kg",  price: product.price_1kg  },
 //   ].filter(opt => opt.price > 0);
 
-//   // Default to first available option
 //   const [selected, setSelected] = useState(weightOptions[0] || null);
 
-//   // Update selected if product changes
 //   useEffect(() => {
 //     const opts = [
 //       { label: "250g", price: product.price_250g },
@@ -229,7 +228,11 @@
 //   const displayPrice = selected ? selected.price : product.price;
 
 //   return (
-//     <div className={`card ${added ? "card-added" : ""}`}>
+//     <div
+//       className={`card ${added ? "card-added" : ""}`}
+//       onClick={() => navigate(`/product/${product.id}`)}
+//       style={{ cursor: "pointer" }}
+//     >
 //       <ImageCarousel images={images} alt={product.name} />
 //       <div className="card-body">
 //         <h2 className="card-name">{product.name}</h2>
@@ -242,7 +245,7 @@
 //               <button
 //                 key={opt.label}
 //                 className={`weight-btn ${selected?.label === opt.label ? "weight-btn-active" : ""}`}
-//                 onClick={() => setSelected(opt)}
+//                 onClick={(e) => { e.stopPropagation(); setSelected(opt); }}
 //               >
 //                 {opt.label}
 //               </button>
@@ -255,12 +258,18 @@
 //           {user ? (
 //             <button
 //               className={`btn-add ${added ? "btn-added" : ""}`}
-//               onClick={() => onAddToCart(product.id, selected?.label, displayPrice)}
+//               onClick={(e) => { e.stopPropagation(); onAddToCart(product.id, selected?.label, displayPrice); }}
 //             >
 //               {added ? "✓ Added" : "+ Add to Cart"}
 //             </button>
 //           ) : (
-//             <Link to="/login" className="btn-add">Login to Buy</Link>
+//             <Link
+//               to="/login"
+//               className="btn-add"
+//               onClick={(e) => e.stopPropagation()}
+//             >
+//               Login to Buy
+//             </Link>
 //           )}
 //         </div>
 //       </div>
@@ -343,7 +352,6 @@
 //     } catch (err) { console.error("Cart count error:", err); }
 //   };
 
-//   // weight and price passed from ProductCard so cart stores correct variant
 //   const addToCart = async (id, weight, price) => {
 //     try {
 //       const res = await authFetch(`${API_URL}/api/cart`, {
@@ -378,13 +386,14 @@
 //       <NavBar cartCount={cartCount} />
 //       <div className="page-content">
 //         <Routes>
-//           <Route path="/"         element={<Home products={products} onAddToCart={addToCart} addedIds={addedIds} />} />
-//           <Route path="/login"    element={<Login />} />
-//           <Route path="/register" element={<Register />} />
-//           <Route path="/cart"     element={<RequireAuth><Cart updateCartCount={fetchCartCount} onOrderPlaced={fetchCartCount} /></RequireAuth>} />
-//           <Route path="/orders"   element={<RequireAuth><Orders /></RequireAuth>} />
-//           <Route path="/profile"  element={<RequireAuth><Profile /></RequireAuth>} />
-//           <Route path="/checkout" element={<RequireAuth><Checkout onOrderPlaced={fetchCartCount} /></RequireAuth>} />
+//           <Route path="/"            element={<Home products={products} onAddToCart={addToCart} addedIds={addedIds} />} />
+//           <Route path="/product/:id" element={<ProductDetail onAddToCart={addToCart} addedIds={addedIds} />} />
+//           <Route path="/login"       element={<Login />} />
+//           <Route path="/register"    element={<Register />} />
+//           <Route path="/cart"        element={<RequireAuth><Cart updateCartCount={fetchCartCount} onOrderPlaced={fetchCartCount} /></RequireAuth>} />
+//           <Route path="/orders"      element={<RequireAuth><Orders /></RequireAuth>} />
+//           <Route path="/profile"     element={<RequireAuth><Profile /></RequireAuth>} />
+//           <Route path="/checkout"    element={<RequireAuth><Checkout onOrderPlaced={fetchCartCount} /></RequireAuth>} />
 //           <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
 //             <Route index           element={<AdminDashboard />} />
 //             <Route path="products" element={<AdminProducts />} />
@@ -402,10 +411,10 @@
 //         <div className="footer-main">
 //           <div className="footer-brand-col">
 //             <div className="footer-brand">
-//               <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart" className="footer-logo-img" />
+//               <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart Foods" className="footer-logo-img" />
 //               <span className="footer-brand-name">Nature Mart Foods</span>
 //             </div>
-//             <p className="footer-tagline">Pure · Healthy · Natural superfoods delivered straight to your door.</p>
+//             <p className="footer-tagline">Pure · Natural · Healthy  superfoods delivered straight to your door.</p>
 //             <div className="footer-badges">
 //               <div className="footer-badge">
 //                 <span className="badge-icon">✅</span>
@@ -465,6 +474,7 @@
 //   );
 // }
 
+
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
@@ -489,7 +499,6 @@ import "./App.css";
 
 const API_URL = "https://nature-mart-project.onrender.com";
 
-// ── Image helpers ─────────────────────────────────────────────
 const parseImages = (image) => {
   if (!image) return [];
   if (Array.isArray(image)) return image.filter(Boolean);
@@ -503,7 +512,6 @@ const getImageSrc = (image) => {
   return `${API_URL}/images/${image}`;
 };
 
-// ── Protected route wrappers ─────────────────────────────────
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -518,7 +526,6 @@ function RequireAdmin({ children }) {
   return children;
 }
 
-// ── Navbar ───────────────────────────────────────────────────
 function NavBar({ cartCount }) {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -607,7 +614,6 @@ function NavBar({ cartCount }) {
   );
 }
 
-// ── Image Carousel ────────────────────────────────────────────
 function ImageCarousel({ images, alt }) {
   const [current, setCurrent] = useState(0);
 
@@ -666,7 +672,6 @@ function ImageCarousel({ images, alt }) {
   );
 }
 
-// ── Product card ─────────────────────────────────────────────
 function ProductCard({ product, onAddToCart, added }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -702,7 +707,6 @@ function ProductCard({ product, onAddToCart, added }) {
         <h2 className="card-name">{product.name}</h2>
         <p className="card-desc">{product.description}</p>
 
-        {/* ── Weight selector ── */}
         {weightOptions.length > 0 && (
           <div className="weight-selector">
             {weightOptions.map(opt => (
@@ -741,7 +745,6 @@ function ProductCard({ product, onAddToCart, added }) {
   );
 }
 
-// ── Home page ────────────────────────────────────────────────
 function Home({ products, onAddToCart, addedIds }) {
   return (
     <main>
@@ -799,20 +802,25 @@ function Home({ products, onAddToCart, addedIds }) {
   );
 }
 
-// ── App content ───────────────────────────────────────────────
 function AppContent() {
   const { user, authFetch, loading } = useAuth();
   const [products, setProducts]   = useState([]);
   const [addedIds, setAddedIds]   = useState([]);
   const [cartCount, setCartCount] = useState(0);
 
+  // ← FIXED: counts total quantity across all items
   const fetchCartCount = async () => {
     if (!user) { setCartCount(0); return; }
     try {
       const res = await authFetch(`${API_URL}/api/cart`);
       if (!res.ok) return;
       const data = await res.json();
-      setCartCount(data.items?.length || 0);
+      const items = data.items || data || [];
+      setCartCount(
+        Array.isArray(items)
+          ? items.reduce((sum, i) => sum + (i.quantity || 1), 0)
+          : 0
+      );
     } catch (err) { console.error("Cart count error:", err); }
   };
 
@@ -878,7 +886,7 @@ function AppContent() {
               <img src={`${API_URL}/images/logo.jpg`} alt="Nature Mart Foods" className="footer-logo-img" />
               <span className="footer-brand-name">Nature Mart Foods</span>
             </div>
-            <p className="footer-tagline">Pure · Natural · Healthy  superfoods delivered straight to your door.</p>
+            <p className="footer-tagline">Pure · Natural · Healthy superfoods delivered straight to your door.</p>
             <div className="footer-badges">
               <div className="footer-badge">
                 <span className="badge-icon">✅</span>
