@@ -1,20 +1,20 @@
 {
-  "short_name": "Nature Mart",
-  "name": "Nature Mart Foods",
+  "short_name": "Nature Mart Foods",
+  "name": "Nature Mart Foods | Pure Natural Healthy Products",
   "icons": [
     {
       "src": "logo.png",
-      "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
       "src": "logo.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ],
-  "theme_color": "#2e7d32",
-  "background_color": "#ffffff",
+  "start_url": ".",
   "display": "standalone",
-  "start_url": "."
+  "theme_color": "#2e7d32",
+  "background_color": "#ffffff"
 }
