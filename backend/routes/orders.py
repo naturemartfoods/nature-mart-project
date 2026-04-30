@@ -23,11 +23,15 @@ def place_order():
     user_id = request.user_id
     data    = request.json or {}
 
+    print("=== DEBUG place_order ===", flush=True)
+    print("data:", data, flush=True)
+    print("delivery_address:", data.get("delivery_address"), flush=True)
+    print("payment_method:", data.get("payment_method"), flush=True)
+
     delivery       = data.get("delivery_address", {})
     payment_method = data.get("payment_method", "cod")
     items          = data.get("items", [])
 
-    # ── Validate inputs ───────────────────────────────────────────────────────
     if not items:
         return jsonify({"error": "No items in order"}), 400
 
@@ -37,7 +41,6 @@ def place_order():
     if payment_method not in ("cod", "upi", "card"):
         return jsonify({"error": "Invalid payment method"}), 400
 
-    # ── Flatten address ───────────────────────────────────────────────────────
     delivery_name    = delivery.get("full_name", "").strip()
     delivery_phone   = delivery.get("phone", "").strip()
     delivery_address = (
@@ -62,7 +65,6 @@ def place_order():
             if not product_id or quantity < 1:
                 continue
 
-            # ── Fetch live price & stock (never trust client price) ───────────
             cur.execute(
                 "SELECT price_250g, price_500g, price_1kg, stock FROM products WHERE id = %s AND is_active = 1",
                 (product_id,)
@@ -74,10 +76,10 @@ def place_order():
                 conn.close()
                 return jsonify({"error": f"Product {product_id} not found or unavailable"}), 400
 
-            weight = item.get("weight", "250g")
+            weight    = item.get("weight", "250g")
             price_map = {"250g": product[0], "500g": product[1], "1kg": product[2]}
-            price = float(price_map.get(weight) or product[0] or 0)
-            stock = product[3]
+            price     = float(price_map.get(weight) or product[0] or 0)
+            stock     = product[3]
 
             if stock < quantity:
                 conn.rollback()
@@ -86,7 +88,6 @@ def place_order():
 
             item_total = price * quantity
 
-            # ── Insert order row ──────────────────────────────────────────────
             cur.execute("""
                 INSERT INTO orders (
                     order_id, user_id, product_id, quantity,
@@ -96,25 +97,16 @@ def place_order():
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                order_id,
-                user_id,
-                product_id,
-                quantity,
-                price,
-                item_total,
-                delivery_name,
-                delivery_phone,
-                delivery_address,
-                payment_method,
-                "placed",
+                order_id, user_id, product_id, quantity,
+                price, item_total,
+                delivery_name, delivery_phone, delivery_address,
+                payment_method, "placed",
             ))
 
-            # ── Decrement stock ───────────────────────────────────────────────
             cur.execute(
                 "UPDATE products SET stock = stock - %s WHERE id = %s",
                 (quantity, product_id)
             )
-
             inserted += 1
 
         if inserted == 0:
@@ -122,9 +114,7 @@ def place_order():
             conn.close()
             return jsonify({"error": "No valid items could be processed"}), 400
 
-        # ── Clear user's cart ─────────────────────────────────────────────────
         cur.execute("DELETE FROM cart WHERE user_id = %s", (user_id,))
-
         conn.commit()
         conn.close()
 
@@ -139,9 +129,8 @@ def place_order():
     except Exception as e:
         conn.rollback()
         conn.close()
-        print(f"[place_order] Error: {e}")
+        print(f"[place_order] Error: {e}", flush=True)
         return jsonify({"error": "Failed to place order. Please try again."}), 500
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  GET /api/orders  — returns orders grouped by order_id, with product names
