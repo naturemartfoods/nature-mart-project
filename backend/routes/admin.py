@@ -378,8 +378,18 @@ def get_all_orders():
     conn = connect_db()
     cur  = conn.cursor()
     cur.execute("""
-        SELECT orders.id, users.name, products.name,
-               orders.quantity, orders.total, orders.status, orders.created_at
+        SELECT
+            orders.id,
+            users.name        AS user,
+            products.name     AS product,
+            orders.quantity,
+            orders.total,
+            orders.status,
+            orders.created_at,
+            orders.name       AS delivery_name,
+            orders.phone      AS delivery_phone,
+            orders.address    AS delivery_address,
+            orders.payment_method
         FROM orders
         JOIN users    ON orders.user_id    = users.id
         JOIN products ON orders.product_id = products.id
@@ -388,8 +398,19 @@ def get_all_orders():
     rows = cur.fetchall()
     conn.close()
     orders = [
-        {"id": r[0], "user": r[1], "product": r[2],
-         "quantity": r[3], "total": r[4], "status": r[5], "created_at": r[6]}
+        {
+            "id":               r[0],
+            "user":             r[1],
+            "product":          r[2],
+            "quantity":         r[3],
+            "total":            r[4],
+            "status":           r[5],
+            "created_at":       str(r[6]),
+            "delivery_name":    r[7] or "",
+            "delivery_phone":   r[8] or "",
+            "delivery_address": r[9] or "",
+            "payment_method":   r[10] or "cod",
+        }
         for r in rows
     ]
     return jsonify(orders)

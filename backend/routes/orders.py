@@ -269,3 +269,20 @@ def get_order_detail(order_id):
         })
 
     return jsonify({"order": order})
+
+@orders_bp.route("/orders/place", methods=["POST"])
+@token_required
+def place_order():
+    user_id = request.user_id
+    data    = request.json or {}
+
+    # ← ADD THESE
+    print("=== DEBUG ===")
+    print("RAW JSON:", data)
+    print("delivery_address:", data.get("delivery_address"))
+    print("payment_method:", data.get("payment_method"))
+    print("items:", data.get("items"))
+
+    delivery       = data.get("delivery_address", {})
+    payment_method = data.get("payment_method", "cod")
+    items          = data.get("items", [])
