@@ -1,57 +1,63 @@
-    <!DOCTYPE html>
-    <html lang="en">
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
 
+    <!-- ✅ Favicon -->
+    <link rel="icon" href="%PUBLIC_URL%/logo.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
 
-      <head>
-        <meta charset="utf-8" />
+    <!-- ✅ Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        <!-- ✅ Local favicon (IMPORTANT) -->
-        <link rel="icon" href="%PUBLIC_URL%/logo.png" />
+    <!-- ✅ Theme Color -->
+    <meta name="theme-color" content="#2e7d32" />
 
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- ✅ Primary SEO -->
+    <title>Nature Mart Foods | Pure Natural Healthy Products</title>
+    <meta
+      name="description"
+      content="Nature Mart Foods - Pure, Natural, Healthy. From our farm to your kitchen. Handpicked superfoods delivered across India."
+    />
+    <meta
+      name="keywords"
+      content="Nature Mart Foods, organic food India, natural products, farm fresh, healthy food, spices, seeds"
+    />
+    <meta name="author" content="Nature Mart Foods" />
 
-        <!-- ✅ Theme -->
-        <meta name="theme-color" content="#2e7d32" />
+    <!-- ✅ Canonical URL -->
+    <link rel="canonical" href="https://naturemartfoods.com/" />
 
-        <!-- ✅ SEO Title -->
-        <title>Nature Mart Foods | Pure Natural Healthy Products</title>
+    <!-- ✅ Robots -->
+    <meta name="robots" content="index, follow" />
 
-        <!-- ✅ SEO Description -->
-        <meta
-          name="description"
-          content="Nature Mart Foods - Pure, Natural, Healthy. From our farm to your kitchen. Handpicked superfoods delivered across India."
-        />
+    <!-- ✅ Open Graph (Facebook, WhatsApp, LinkedIn) -->
+    <meta property="og:title" content="Nature Mart Foods | Pure Natural Healthy Products" />
+    <meta property="og:description" content="Pure, Natural, Healthy food delivered across India." />
+    <meta property="og:image" content="https://naturemartfoods.com/logo.png" />
+    <meta property="og:url" content="https://naturemartfoods.com/" />
+    <meta property="og:type" content="website" />
 
-        <!-- ✅ Keywords (optional but okay) -->
-        <meta
-          name="keywords"
-          content="Nature Mart Foods, organic food India, natural products, farm fresh, healthy food"
-        />
+    <!-- ✅ Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nature Mart Foods" />
+    <meta name="twitter:description" content="Pure, Natural, Healthy food delivered across India." />
+    <meta name="twitter:image" content="https://naturemartfoods.com/logo.png" />
 
-        <!-- ✅ Open Graph (for Google + WhatsApp + social) -->
-        <meta property="og:title" content="Nature Mart Foods" />
-        <meta property="og:description" content="Pure, Natural, Healthy food delivered across India." />
-        <meta property="og:url" content="https://naturemartfoods.com" />
-        <meta property="og:type" content="website" />
+    <!-- ✅ Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
-        <!-- ✅ App icons -->
-        <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
+    <!-- ✅ Optional: Google Fonts (if needed) -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet"> -->
 
-        <!-- ✅ Manifest (only once) -->
-        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-      </head>
-      <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
-        <div id="root"></div>
-        <!--
-          This HTML file is a template.
-          If you open it directly in the browser, you will see an empty page.
+  </head>
 
-          You can add webfonts, meta tags, or analytics to this file.
-          The build step will place the bundled scripts into the <body> tag.
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
 
-          To begin the development, run `npm start` or `yarn start`.
-          To create a production bundle, use `npm run build` or `yarn build`.
-        -->
-      </body>
-    </html>
+    <!-- React Root -->
+    <div id="root"></div>
+
+  </body>
+</html>
