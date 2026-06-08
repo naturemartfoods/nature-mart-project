@@ -13,7 +13,7 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 def connect_db():
     if not DATABASE_URL:
         raise Exception("DATABASE_URL is not set! Check your .env file.")
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
 
 
 def create_tables():
