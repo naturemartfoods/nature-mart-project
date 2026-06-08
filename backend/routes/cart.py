@@ -242,14 +242,7 @@ def build_image_url(raw_image):
         return ""
     first_image = raw_image.split(",")[0].strip()
     if first_image.startswith("http"):
-        if "/images/" not in first_image:
-            filename = first_image.split("com")[-1].lstrip("/")
-            return f"{BASE_URL}/images/{filename}"
         return first_image
-    elif first_image.startswith("/images/"):
-        return BASE_URL + first_image
-    else:
-        return f"{BASE_URL}/images/{first_image}"
 
 
 @cart_bp.route('/cart', methods=['POST'])
